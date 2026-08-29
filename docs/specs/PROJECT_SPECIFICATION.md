@@ -33,10 +33,9 @@ The Web Application is a Dashboard displaying the activity of clients and monito
    available to the operator in the web app.
 6. The Risk Level score should be computed taking into consideration the risk rule weight, the matching with the
    threshold logi, and other factors.
-7. The operator with admin rights should be able to edit risk rules from the web application.
-8. The operator should be able to visualize the history of all AI Risk Assessments per transaction.
-9. Operators should be able to login. Each operator has its own identity and a set of access rights.
-10. RAG should be used to augment the context with risk rules and other sources, such as policies and regulations.
+7. The operator should be able to visualize the history of all AI Risk Assessments per transaction.
+8. Operators should be able to login. Each operator has its own identity and a set of access rights.
+9. RAG should be used to augment the context with risk rules and other sources, such as policies and regulations.
 
 ## Data Model
 
@@ -104,18 +103,6 @@ Extends from the **transactions** entity and specifies the details of a crypto t
 | **tx_hash**             | VARCHAR                      | On-chain transaction hash |
 | **exchange_name**       | VARCHAR                      | exchange, if any          |
 
-### risk_assessments
-
-Entity representing the outcome of a risk assessment.
-
-| Column Name            | Data Type                | Description                |
-|------------------------|--------------------------|----------------------------|
-| **assessment_id**      | UUID (PK)                | Unique assessment record   |
-| **transaction_id**     | UUID (FK → transactions) | Transaction being scored   |
-| **rule_id**            | UUID (FK → risk_rules)   | Rule that triggered        |
-| **triggered_at**       | TIMESTAMP                | When the rule fired        |
-| **score_contribution** | DECIMAL(5,2)             | Points added to risk_score |
-
 ### risk_rules
 
 Entity specifying the Risk Rules to be checked for the assessment of a transaction.
@@ -127,3 +114,25 @@ Entity specifying the Risk Rules to be checked for the assessment of a transacti
 | **applies_to**      | ENUM         | CARD / PAYMENT / CRYPTO / ALL          |
 | **threshold_logic** | TEXT         | Rule condition                         |
 | **weight**          | DECIMAL(5,2) | Default score weight                   |
+
+### risk_assessments
+
+Entity representing the outcome of a risk assessment.
+
+| Column Name            | Data Type                               | Description                |
+|------------------------|-----------------------------------------|----------------------------|
+| **assessment_id**      | UUID (PK, FK -> risk_final_assessments) | Unique assessment record   |
+| **transaction_id**     | UUID (PK, FK → transactions)            | Transaction being scored   |
+| **rule_id**            | UUID (PK, FK → risk_rules)              | Rule that triggered        |
+| **triggered_at**       | TIMESTAMP                               | When the rule fired        |
+| **score_contribution** | DECIMAL(5,2)                            | Points added to risk_score |
+
+### risk_final_assessments
+
+| Column Name         | Data Type                   | Description                      |
+|---------------------|-----------------------------|----------------------------------|
+| **assessment_id**   | UUID (PK, FK -> risk_rules) | Unique assessment record         |
+| **triggered_at**    | TIMESTAMP                   | When the assessment completed    |
+| **risk_level**      | DECIMAL(10,2)               | Points of final risk_score       |
+| **findings**        | TEXT                        | Summary of the assessment        |
+| **recommendations** | TEXT                        | Summary with the recommendations |
