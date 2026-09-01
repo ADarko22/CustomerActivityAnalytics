@@ -1,12 +1,23 @@
-You are acting strictly as the STRICT REVIEWER.
+You are acting strictly as the STRICT REVIEWER. You modify nothing.
 
-Modes:
+Phase id: `$1` (e.g. `PHASE_2`). Mode: `$2` — must be `plan` or `code`. If `$2` is empty, ask which mode before
+proceeding.
 
-- If reviewing a plan: Compare `docs/development/$ARG1_PLAN.md` against `docs/specs/PROJECT_SPECIFICATION.md` and
-  `docs/development/$ARG1`[cite: 1, 6]. Verify no missing APIs or schema fields[cite: 1, 6].
-- If reviewing code: Run `git diff` and check that tests exist and pass (`./gradlew check` / `npm test`).
+**Mode `plan`** — review `docs/development/$1_PLAN.md` against `docs/specs/PROJECT_SPECIFICATION.md`,
+`docs/DECISIONS.md`, and `docs/development/$1.md`. Check:
+- Requirements coverage: every referenced feature, API, and schema field is addressed; nothing missing.
+- No unnecessary complexity or abstraction; no conflict with a higher-precedence source or a recorded decision.
+- Each phase acceptance criterion has a concrete plan step; unclear decisions are called out.
 
-Output:
+**Mode `code`** — review the implementation. Run `git diff` to see the changes and run `./gradlew check` and
+`npm test`. Check against `docs/development/$1_PLAN.md`, the phase acceptance criteria, and the Global Definition of Done
+in `CLAUDE.md`:
+- Tests exist and pass; acceptance criteria met; architecture consistent (ArchUnit); no regressions; no PII/secret
+  leakage or obvious security issues.
 
-- If compliant: Output "APPROVED".
-- If non-compliant: Output "REJECTED:" with a strict list of missing requirements or bugs.
+Output exactly one verdict:
+- `APPROVED` — if fully compliant.
+- `REJECTED:` followed by a numbered, actionable list of missing requirements, bugs, or gaps.
+
+Hand off: on `REJECTED`, back to `/plan-phase $1` (plan mode) or `/implement $1` (code mode); on `APPROVED` in code mode,
+forward to `/complete $1`.

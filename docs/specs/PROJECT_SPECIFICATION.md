@@ -31,8 +31,9 @@ The Web Application is a Dashboard displaying the activity of clients and monito
    configurable model, and relying on prompt engineering managed as a code in the backend, context augmentation with RAG
    based on risk rules specified in a relational database. The assessment should be persisted in the database and made
    available to the operator in the web app.
-6. The Risk Level score should be computed taking into consideration the risk rule weight, the matching with the
-   threshold logi, and other factors.
+6. The Risk Level is derived from a numeric risk score, computed taking into consideration the risk rule weight, the
+   matching strength against the threshold logic, and other factors. The numeric score maps to a categorical risk level
+   (e.g. LOW / MEDIUM / HIGH).
 7. The operator should be able to visualize the history of all AI Risk Assessments per transaction.
 8. Operators should be able to login. Each operator has its own identity and a set of access rights.
 9. RAG should be used to augment the context with risk rules and other sources, such as policies and regulations.
@@ -117,22 +118,29 @@ Entity specifying the Risk Rules to be checked for the assessment of a transacti
 
 ### risk_assessments
 
-Entity representing the outcome of a risk assessment.
+Line-item entity: the individual risk rules that fired within a single final assessment run, one row per rule.
 
-| Column Name            | Data Type                               | Description                |
-|------------------------|-----------------------------------------|----------------------------|
-| **assessment_id**      | UUID (PK, FK -> risk_final_assessments) | Unique assessment record   |
-| **transaction_id**     | UUID (PK, FK → transactions)            | Transaction being scored   |
-| **rule_id**            | UUID (PK, FK → risk_rules)              | Rule that triggered        |
-| **triggered_at**       | TIMESTAMP                               | When the rule fired        |
-| **score_contribution** | DECIMAL(5,2)                            | Points added to risk_score |
+| Column Name            | Data Type                          | Description                                   |
+|------------------------|------------------------------------|-----------------------------------------------|
+| **assessment_id**      | UUID (FK → risk_final_assessments) | Parent final assessment (part of composite PK)|
+| **rule_id**            | UUID (FK → risk_rules)             | Rule that triggered (part of composite PK)    |
+| **transaction_id**     | UUID (FK → transactions)           | Transaction being scored                      |
+| **triggered_at**       | TIMESTAMP                          | When the rule fired                           |
+| **score_contribution** | DECIMAL(5,2)                       | Points this rule added to the numeric score   |
+
+Primary key: `(assessment_id, rule_id)` — one score contribution per rule per assessment run.
 
 ### risk_final_assessments
 
-| Column Name         | Data Type                   | Description                      |
-|---------------------|-----------------------------|----------------------------------|
-| **assessment_id**   | UUID (PK, FK -> risk_rules) | Unique assessment record         |
-| **triggered_at**    | TIMESTAMP                   | When the assessment completed    |
-| **risk_level**      | DECIMAL(10,2)               | Points of final risk_score       |
-| **findings**        | TEXT                        | Summary of the assessment        |
-| **recommendations** | TEXT                        | Summary with the recommendations |
+Aggregate entity: the final outcome of one assessment run for a transaction (Feature 7 exposes the history of these
+per transaction).
+
+| Column Name         | Data Type                | Description                                  |
+|---------------------|--------------------------|----------------------------------------------|
+| **assessment_id**   | UUID (PK)                | Unique final-assessment record               |
+| **transaction_id**  | UUID (FK → transactions) | Transaction that was assessed                |
+| **triggered_at**    | TIMESTAMP                | When the assessment completed                |
+| **risk_level**      | VARCHAR                  | Categorical level, e.g. LOW / MEDIUM / HIGH  |
+| **risk_score**      | DECIMAL(10,2)            | Numeric aggregate score behind the level     |
+| **findings**        | TEXT                     | Summary of the assessment                    |
+| **recommendations** | TEXT                     | Summary with the recommendations             |

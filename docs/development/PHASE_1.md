@@ -1,47 +1,49 @@
-# Development Phase #1 - Technology Decisions nad Local Environment Setup
+# Phase 1 — Technology Decisions and Local Environment Setup
+
+**Status:** NOT_STARTED
+**Depends on:** — (foundational)
+
+## Objective
+
+Establish the Gradle multi-module skeleton, centralized dependency catalog, local Docker environment, and CI pipeline
+so every later phase can build, test, and run against a consistent baseline.
+
+## Scope
+
+- **In:** project scaffolding, `gradle/libs.versions.toml` catalog, single-terminal run task, Docker Compose (Postgres
+  now; Keycloak + WireMock folders reserved for Phases 4–5), build/lint/test/coverage wiring, GitHub Actions.
+- **Out:** any product feature or REST endpoint (those start in Phase 2).
+- Stack choices and their rationale live in `docs/DECISIONS.md` (D1 Angular, D5 CI/ArchUnit/coverage).
 
 ## Technology Stack
 
-The Web Application should be implemented as a Gradle Multimodule project, with a backend module, a frontend module, and
-local environment setup. Dependencies are managed centrally in a Gradle toml catalog. The stack uses technologies I am
-most familiar with, in order for me to supervise and review the AI-driven implementation.
+Gradle multi-module project: a backend module, a frontend module, and local-environment setup. Dependencies managed
+centrally in a Gradle TOML catalog. The stack favors technologies the author can supervise while reviewing AI output.
 
-### Backend
+- **Backend:** Java 25, Spring Boot 4.1; starters for JPA/Hibernate, Postgres + Flyway, Web, AI, Actuator, OpenAPI,
+  OAuth2; ArchUnit. Flyway manages schema; a dedicated profile seeds data for local development.
+- **Frontend:** Angular 22, Node.js 22; FontAwesome icons; `angular-oauth2-oidc`.
+- **Local Environment:** Docker Compose running Postgres (and, from later phases, Keycloak and WireMock), with a config
+  folder for credentials, stubs, and demo identities/roles; Gradle scripts and tasks.
+- **CI/CD:** GitHub Actions driving the Gradle lint/build/test phases.
 
-- Java 25 and Spring Boot 4.1, and a frontend module using Angular 22 and Node.js 22.
-- Spring Boot starter dependencies for JPA/Hibernate, Postgres and Flyway, Web, AI, Actuator, OpenAPI and Oauth2.
-- Database schema creation is managed with Flyway. A specific profile is used to initialized data for local development.
-- ArchUnit
+## Acceptance Criteria
 
-### Frontend
+1. Project skeleton verified; all dependencies flow through the `gradle/libs.versions.toml` catalog.
+2. A single Gradle task starts Docker Compose + backend + frontend in one terminal, multiplexing output with colored
+   `[backend]` / `[frontend]` / `[docker]` prefixes.
+3. The Gradle build applies linting (Checkstyle + `google-java-format`; ESLint + `eslint-config-google`), runs tests
+   (JUnit + Jest), and produces coverage reports (JaCoCo + Istanbul).
+4. A GitHub Actions workflow runs lint/build/test via Gradle and integrates with SonarCloud (author provisions
+   `SONAR_TOKEN` and the Sonar project config).
+5. Docker Compose provisions PostgreSQL and a `local-environment/postgresql` folder is reserved for future init
+   scripts.
 
-- Angular 22 and Node.js 22.
-- Fontawesome icons and Angular-Oauth2 library.
+## Testing Scope
 
-### Local Environment
+Smoke-level: build succeeds, both module test suites run (even if empty), and the run task boots the stack locally.
 
-- Docker Compose.
-- Running Postgres, Keycloak and wiremock. Having a folder with all the local configuration for these services (i.e.
-  access credentials, stubs, demo identities and roles).
-- Gradle scripts and tasks.
+## Risks / Open Questions
 
-### CI/CD
-
-- GitHub Actions.
-- Gradle scripts and tasks.
-
-## Definition of Done
-
-1. Verify the provided project skeleton and manage new dependencies, following the initial structure via the Gradle toml
-   catalog.
-2. Define a Gradle task via a custom script, if necessary, for starting the docker-compose infrastructure + java
-   backend + the angular frontend, within a single terminal with all the outputs piped in it, by highlighting different
-   sources with a prefix, i.e. `[backend]`, `[frontend]`, or `[docker]`, and different colors.
-3. Define Gradle build task with:
-    1. Applying code linting, via Checkstyle with `google-java-format` and eslint with `eslint-config-google`.
-    2. Running tests and generate reports, with JUnit and Jest; use JaCoCo and Instanbul for coverage report.
-4. Define GitHub Actions workflow:
-    1. Rely on Gradle for the linting, build and test phases.
-    2. Integrate with a Sonar Project on SonarCloud (I will provision the SONAR_TOKEN and the identifying configuration)
-5. Define a docker-compose that provisions a PostgreSQL DB, and setup a local-environment folder with a postgresql
-   folder where to place future initialization scripts.
+- Java 25 + Spring Boot 4.1 are bleeding-edge; verify plugin/starter compatibility early.
+- Confirm the single-terminal multiplexed run task works cross-platform (macOS dev host).
