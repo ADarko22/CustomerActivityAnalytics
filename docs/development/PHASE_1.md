@@ -1,6 +1,6 @@
 # Phase 1 — Technology Decisions and Local Environment Setup
 
-**Status:** NOT_STARTED
+**Status:** PLANNED
 **Depends on:** — (foundational)
 
 ## Objective
