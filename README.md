@@ -8,15 +8,37 @@ in the [libs.versions.toml](gradle/libs.versions.toml) catalog.
 
 ## How to Run
 
-_Filled in as phases land (updated by the `/complete` step). See Phase 1 for the single-terminal run task._
+Prerequisites: JDK 25 (managed via the Gradle toolchain), Docker Desktop (or another Docker daemon) running. Node is
+provisioned automatically by Gradle for the frontend.
+
+- **Run everything locally, one terminal:** `./gradlew dev` — starts Postgres (Docker Compose), the backend
+  (`:8080`), and the frontend (`:4200`), multiplexed with colored `[docker]` / `[backend]` / `[frontend]` prefixes.
+  Stop with Ctrl-C.
+- **Verify:** `./gradlew check` — lint, tests, and coverage for both modules.
+- **Build:** `./gradlew build`.
+- Backend health: `http://localhost:8080/actuator/health`. Frontend: `http://localhost:4200`.
 
 ## Architecture
 
-_Filled in as phases land. Durable architectural and beyond-PDF decisions live in [DECISIONS.md](docs/DECISIONS.md)._
+Gradle multi-module project:
+
+- `backend` — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource server.
+- `frontend` — Angular 22.
+- `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
+
+CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
+configured.
+
+Durable architectural decisions — including every choice that goes beyond the assignment PDF — are tracked in
+[DECISIONS.md](docs/DECISIONS.md).
 
 ### Assumptions
 
-_Filled in as phases land._
+- Local/demo use only: default database credentials in `local-environment/docker-compose.yml` and
+  `backend/src/main/resources/application.yml` are placeholders, overridable via environment variables — not
+  intended for production deployment.
+- The AI provider integration is scaffolded (dependency + placeholder config) but inert until Phase 4 wires up real
+  usage.
 
 ## Implementation Journey
 

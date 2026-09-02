@@ -1,7 +1,9 @@
 plugins {
     java
+    jacoco
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.spotless)
 }
 
 group = "io.github.adarko22"
@@ -41,15 +43,40 @@ dependencies {
     testImplementation(libs.spring.boot.starter.data.jpa.test)
     testImplementation(libs.spring.boot.starter.security.oauth2.resource.server.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.archunit.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 dependencyManagement {
     imports {
         mavenBom(libs.spring.ai.bom.get().toString())
+        mavenBom(libs.testcontainers.bom.get().toString())
     }
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+}
+
+spotless {
+    java {
+        googleJavaFormat("1.27.0")
+        target("src/**/*.java")
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.spotlessCheck, tasks.jacocoTestReport)
 }

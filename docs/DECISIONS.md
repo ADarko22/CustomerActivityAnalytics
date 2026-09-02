@@ -56,3 +56,38 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   plus per-transaction history (Feature 7). The original spec had contradictory FK/PK definitions.
 - **Consequence:** Reconciled data model in `PROJECT_SPECIFICATION.md`; `risk_level` is categorical (LOW/MEDIUM/HIGH)
   with a separate numeric `risk_score`.
+
+## D7 — Karma/Jasmine over Jest for frontend tests · Accepted
+- **Decision:** Use Angular's default Karma/Jasmine test runner instead of the Jest originally named in `CLAUDE.md`.
+- **Context:** The scaffolded `package.json` ships Angular's default `ng test` (Karma/Jasmine), which already emits
+  Istanbul coverage. `jest-preset-angular` can lag new Angular majors and adds config surface for no clear benefit
+  here.
+- **Consequence:** `CLAUDE.md`'s Testing & Quality line updated; `frontend/build.gradle.kts`'s `test` task runs
+  `npm run test:ci` (Karma, headless Chromium via Puppeteer, `--code-coverage`).
+
+## D8 — `@angular-eslint` + Prettier over `eslint-config-google` · Accepted
+- **Decision:** Lint the frontend with `@angular-eslint`'s flat config plus Prettier instead of `eslint-config-google`.
+- **Context:** `eslint-config-google` predates ESLint flat config and modern Angular tooling; `@angular-eslint` is the
+  idiomatic, actively maintained choice for Angular 22.
+- **Consequence:** `frontend/eslint.config.js` (flat config) and `.prettierrc` added; `CLAUDE.md` updated.
+
+## D9 — Spotless for `google-java-format` · Accepted
+- **Decision:** Apply `google-java-format` via the Spotless Gradle plugin rather than Checkstyle.
+- **Context:** Spotless is the canonical Gradle integration for `google-java-format`; `spotlessCheck` fails the build
+  on violations, satisfying the original Checkstyle intent with less configuration.
+- **Consequence:** `backend/build.gradle.kts` applies `com.diffplug.spotless`; `check` depends on `spotlessCheck`.
+
+## D10 — Testcontainers for backend integration tests · Accepted
+- **Decision:** Use Testcontainers (Postgres) with Spring Boot's `@ServiceConnection` for the backend context-load
+  test, instead of a hand-managed local database.
+- **Context:** Gives CI a real Postgres instance per test run without provisioning shared infrastructure.
+- **Consequence:** `backend/build.gradle.kts` adds `spring-boot-testcontainers`, `testcontainers-junit-jupiter`, and
+  `testcontainers-postgresql`; `ApplicationContextTest` boots a `PostgreSQLContainer`.
+
+## D11 — Puppeteer-bundled Chromium for Karma tests · Accepted
+- **Decision:** Run Karma against Puppeteer's bundled Chromium (via a small `frontend/scripts/karma-runner.js`
+  wrapper) instead of a system-installed browser or a CI browser-setup action.
+- **Context:** A system Chrome path differs across local machines and CI runners; Puppeteer downloads a matching
+  Chromium as a devDependency, making `npm test` hermetic everywhere without a CI-specific browser-install step.
+- **Consequence:** `frontend/karma.conf.js` launches a `ChromeHeadlessCI` custom launcher; CI (`.github/workflows/
+  ci.yml`) needs no separate Chrome setup step.

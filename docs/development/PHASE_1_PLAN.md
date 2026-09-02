@@ -1,6 +1,6 @@
 # Phase 1 Implementation Plan — Technology Decisions & Local Environment Setup
 
-**Status:** PLANNED
+**Status:** COMPLETE
 
 Blueprint for `PHASE_1.md`. Turns the near-empty Gradle skeleton into a runnable, testable, CI-checked baseline. No
 product features — scaffolding, tooling, local env, and CI only. Read alongside `CLAUDE.md` (conventions) and

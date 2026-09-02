@@ -23,8 +23,8 @@ Read only the *current* phase's plan; a completed phase's plan is historical rec
 - **Frontend:** Angular 22, Node.js 22, FontAwesome icons, `angular-oauth2-oidc`.
 - **Database & Migration:** PostgreSQL, Flyway migrations (under `backend/src/main/resources/db/migration`), Docker
   Compose.
-- **Testing & Quality:** JUnit 5, Jest, JaCoCo, Istanbul, ArchUnit, Checkstyle (`google-java-format`), ESLint (
-  `eslint-config-google`).
+- **Testing & Quality:** JUnit 5, Karma/Jasmine (Angular default), JaCoCo, Istanbul, ArchUnit, Spotless (
+  `google-java-format`), `@angular-eslint` (flat config) + Prettier. See `docs/DECISIONS.md` D7–D10.
 - **Local Environment:** Docker Compose provisioning Postgres, Keycloak, and WireMock stubs.
 
 ## Coding Standards

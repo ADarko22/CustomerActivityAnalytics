@@ -1,6 +1,6 @@
 # Phase 1 — Technology Decisions and Local Environment Setup
 
-**Status:** PLANNED
+**Status:** COMPLETE
 **Depends on:** — (foundational)
 
 ## Objective
@@ -32,8 +32,9 @@ centrally in a Gradle TOML catalog. The stack favors technologies the author can
 1. Project skeleton verified; all dependencies flow through the `gradle/libs.versions.toml` catalog.
 2. A single Gradle task starts Docker Compose + backend + frontend in one terminal, multiplexing output with colored
    `[backend]` / `[frontend]` / `[docker]` prefixes.
-3. The Gradle build applies linting (Checkstyle + `google-java-format`; ESLint + `eslint-config-google`), runs tests
-   (JUnit + Jest), and produces coverage reports (JaCoCo + Istanbul).
+3. The Gradle build applies linting (Spotless + `google-java-format`; `@angular-eslint` + Prettier), runs tests
+   (JUnit + Karma/Jasmine), and produces coverage reports (JaCoCo + Istanbul). See `docs/DECISIONS.md` D7–D9 for the
+   rationale behind this substitution from the originally stated Jest/`eslint-config-google`.
 4. A GitHub Actions workflow runs lint/build/test via Gradle and integrates with SonarCloud (author provisions
    `SONAR_TOKEN` and the Sonar project config).
 5. Docker Compose provisions PostgreSQL and a `local-environment/postgresql` folder is reserved for future init
