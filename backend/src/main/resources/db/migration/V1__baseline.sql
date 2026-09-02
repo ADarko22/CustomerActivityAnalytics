@@ -1,0 +1,1 @@
+-- Baseline migration. Product tables are introduced starting Phase 2.
