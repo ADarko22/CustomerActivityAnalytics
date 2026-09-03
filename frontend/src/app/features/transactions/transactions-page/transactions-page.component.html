@@ -1,0 +1,7 @@
+<div class="transactions-page">
+  <app-transaction-table
+    [customerId]="customerId()"
+    (transactionSelected)="onTransactionSelected($event)"
+  />
+  <app-transaction-detail [transaction]="selectedTransaction()" />
+</div>

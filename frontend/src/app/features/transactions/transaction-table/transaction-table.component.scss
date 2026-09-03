@@ -1,0 +1,15 @@
+.toolbar,
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.transaction-table {
+  width: 100%;
+}
+
+tr.mat-mdc-row {
+  cursor: pointer;
+}

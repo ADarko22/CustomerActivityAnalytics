@@ -1,0 +1,18 @@
+<mat-form-field appearance="outline" class="search-field">
+  <mat-label>Search customer</mat-label>
+  <input
+    matInput
+    [formControl]="searchControl"
+    [matAutocomplete]="auto"
+    placeholder="Name or customer ID"
+  />
+  <mat-autocomplete
+    #auto="matAutocomplete"
+    [displayWith]="displayCustomer"
+    (optionSelected)="onCustomerSelected($event)"
+  >
+    @for (customer of suggestions(); track customer.customerId) {
+      <mat-option [value]="customer">{{ customer.firstName }} {{ customer.lastName }}</mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>

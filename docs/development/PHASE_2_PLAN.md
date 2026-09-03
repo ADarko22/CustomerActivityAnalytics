@@ -1,6 +1,6 @@
 # Phase 2 Implementation Plan — Transactions Features
 
-**Status:** PLANNED
+**Status:** COMPLETE
 
 Blueprint for `PHASE_2.md`. Adds the first product data model and REST surface (customer search, transaction
 overview, polymorphic transaction detail) on top of the Phase 1 scaffolding, plus the matching Angular UI. Read

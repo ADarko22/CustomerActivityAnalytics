@@ -91,3 +91,26 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   Chromium as a devDependency, making `npm test` hermetic everywhere without a CI-specific browser-install step.
 - **Consequence:** `frontend/karma.conf.js` launches a `ChromeHeadlessCI` custom launcher; CI (`.github/workflows/
   ci.yml`) needs no separate Chrome setup step.
+
+## D12 — Transaction-table row tooltip restores the spec's "hover" behavior · Accepted
+- **Decision:** `PROJECT_SPECIFICATION.md` Feature 2 shows activity-specific details "when selecting the activity or
+  hovering on it," but `PHASE_2.md`'s functional requirement only describes the full detail card appearing "on
+  selecting." Phase 2 reconciles both: the full `TransactionDetailDto` card stays select-only (matching the phase
+  doc), and each transaction-table row additionally carries a `matTooltip` with a one-line summary (status, amount,
+  currency), restoring the spec's hover behavior without duplicating the detail view.
+- **Context:** Identified during Phase 2 planning (`PHASE_2_PLAN.md` Clarification #5) as a gap between the two
+  precedence layers rather than a hard contradiction.
+- **Consequence:** `TransactionTableComponent`'s row template binds `[matTooltip]` to a `rowSummary()` helper; no new
+  dependency (`MatTooltipModule` ships with `@angular/material`, already a project dependency).
+
+## D13 — Temporary permit-all `SecurityFilterChain` until Phase 5 · Accepted
+- **Decision:** Add a minimal `SecurityConfig` (`permitAll()` on every request) in `backend/.../config/
+  SecurityConfig.java`, active from Phase 2 onward until Phase 5 replaces it with real OAuth2/OIDC login and
+  role-based access.
+- **Context:** Phase 1 already added `spring-boot-starter-security-oauth2-resource-server` to the build (per the
+  Phase 1 tech stack, in preparation for D2/Phase 5). With that starter on the classpath and no security
+  configuration bean, Spring Security's default-deny posture rejects every request with `401`, which would make
+  Phase 2's (and Phase 3-4's) endpoints unusable before Phase 5 exists. `PHASE_2.md` explicitly scopes auth "Out"
+  to Phase 5, implying every earlier phase's endpoints should be open.
+- **Consequence:** All endpoints are unauthenticated through Phase 2-4; `SecurityConfig` is expected to be replaced
+  (not merely extended) when Phase 5 implements D2's Keycloak-backed OAuth2/PKCE flow and role-based access.

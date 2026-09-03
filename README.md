@@ -23,7 +23,12 @@ provisioned automatically by Gradle for the frontend.
 Gradle multi-module project:
 
 - `backend` — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource server.
-- `frontend` — Angular 22.
+  Domain model (Phase 2): `customers` and polymorphic `transactions` (`CARD`/`PAYMENT`/`CRYPTO`, JPA `JOINED`
+  inheritance), exposed under `/api/v1` — customer search, a paginated/filterable/sortable transaction overview, and
+  per-transaction polymorphic detail.
+- `frontend` — Angular 22 + Angular Material. Customer search (autocomplete), a server-driven transaction table with
+  an activity-type filter and per-column filters/sort, and a transaction detail view (Phase 2). `ng serve` proxies
+  `/api/**` to the backend via `frontend/proxy.conf.json`.
 - `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
@@ -39,6 +44,10 @@ Durable architectural decisions — including every choice that goes beyond the 
   intended for production deployment.
 - The AI provider integration is scaffolded (dependency + placeholder config) but inert until Phase 4 wires up real
   usage.
+- No authentication is enforced yet: every `/api/v1/**` endpoint is open (a temporary `permitAll` `SecurityConfig`)
+  until Phase 5 wires up real OAuth2/OIDC login and role-based access — see [DECISIONS.md](docs/DECISIONS.md) D13.
+- Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed
+  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically).
 
 ## Implementation Journey
 

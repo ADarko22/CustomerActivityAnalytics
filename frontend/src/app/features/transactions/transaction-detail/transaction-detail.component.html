@@ -1,0 +1,41 @@
+@if (transaction; as txn) {
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Transaction {{ txn.transactionId }}</mat-card-title>
+      <mat-card-subtitle>{{ txn.activityType }} · {{ txn.status }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p>Amount: {{ txn.amount }} {{ txn.currency }}</p>
+      <p>Date: {{ txn.createdAt }}</p>
+      @switch (txn.activityType) {
+        @case ('CARD') {
+          <p>Card: {{ txn.cardPan }} ({{ txn.cardType }})</p>
+          <p>Merchant: {{ txn.merchantName }} ({{ txn.mccCode }})</p>
+          <p>Card present: {{ txn.cardPresent ? 'Yes' : 'No' }}</p>
+          @if (txn.authorizationCode) {
+            <p>Authorization: {{ txn.authorizationCode }}</p>
+          }
+          @if (txn.declineReason) {
+            <p>Decline reason: {{ txn.declineReason }}</p>
+          }
+        }
+        @case ('PAYMENT') {
+          <p>Method: {{ txn.paymentMethod }}</p>
+          <p>Sender: {{ txn.senderAccount }}</p>
+          <p>Receiver: {{ txn.receiverAccount }} ({{ txn.receiverBankCountry }})</p>
+        }
+        @case ('CRYPTO') {
+          <p>Blockchain: {{ txn.blockchain }}</p>
+          <p>From: {{ txn.walletAddressFrom }}</p>
+          <p>To: {{ txn.walletAddressTo }}</p>
+          <p>Tx hash: {{ txn.txHash }}</p>
+          @if (txn.exchangeName) {
+            <p>Exchange: {{ txn.exchangeName }}</p>
+          }
+        }
+      }
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <p class="empty-state">Select a transaction to see its details.</p>
+}

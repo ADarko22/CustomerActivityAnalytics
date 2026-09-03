@@ -1,6 +1,6 @@
 # Phase 2 — Transactions Features
 
-**Status:** PLANNED
+**Status:** COMPLETE
 **Depends on:** Phase 1 — needs the module skeleton, Postgres, and build/CI baseline.
 
 ## Objective

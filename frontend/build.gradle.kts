@@ -47,6 +47,9 @@ tasks.assemble {
 tasks.register<NpxTask>("dev") {
     dependsOn(tasks.npmInstall)
     command.set("concurrently")
+    // Gradle pipes the child process's output rather than attaching a real TTY, so chalk/
+    // concurrently's own TTY auto-detection disables color; force it back on.
+    environment.put("FORCE_COLOR", "1")
     args.set(
         listOf(
             "-k",
@@ -55,7 +58,7 @@ tasks.register<NpxTask>("dev") {
             "-c",
             "blue,green,magenta",
             "docker compose -f ../local-environment/docker-compose.yml up",
-            "cd .. && ./gradlew :backend:bootRun",
+            "cd .. && SPRING_PROFILES_ACTIVE=local ./gradlew :backend:bootRun",
             "npm start",
         )
     )
