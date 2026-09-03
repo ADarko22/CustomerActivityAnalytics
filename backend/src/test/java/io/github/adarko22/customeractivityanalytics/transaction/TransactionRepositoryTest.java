@@ -10,6 +10,7 @@ import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivit
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,30 @@ class TransactionRepositoryTest extends AbstractPostgresIntegrationTest {
 
     assertThat(page.getContent()).hasSize(1);
     assertThat(page.getContent().get(0).getAmount()).isEqualByComparingTo("50.00");
+  }
+
+  @Test
+  void findsTheMostRecentTransactionForACustomer() {
+    Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+    saveCard(
+        new BigDecimal("10.00"), "EUR", TransactionStatus.COMPLETED, now.minus(2, ChronoUnit.DAYS));
+    saveCard(new BigDecimal("20.00"), "EUR", TransactionStatus.COMPLETED, now);
+    saveCard(
+        new BigDecimal("30.00"), "EUR", TransactionStatus.COMPLETED, now.minus(1, ChronoUnit.DAYS));
+
+    Optional<Transaction> latest =
+        transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(customerId);
+
+    assertThat(latest).isPresent();
+    assertThat(latest.get().getAmount()).isEqualByComparingTo("20.00");
+  }
+
+  @Test
+  void findsNoLatestTransactionForACustomerWithNone() {
+    Optional<Transaction> latest =
+        transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(UUID.randomUUID());
+
+    assertThat(latest).isEmpty();
   }
 
   private void saveCard(

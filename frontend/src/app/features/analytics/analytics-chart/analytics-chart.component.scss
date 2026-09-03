@@ -3,3 +3,15 @@
   height: 360px;
   width: 100%;
 }
+
+.chart-scroll {
+  height: 100%;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.chart-inner {
+  position: relative;
+  height: 100%;
+  min-width: 100%;
+}

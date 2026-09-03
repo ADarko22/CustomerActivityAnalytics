@@ -19,8 +19,12 @@ import io.github.adarko22.customeractivityanalytics.transaction.crypto.CryptoAct
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivityRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +60,21 @@ class AnalyticsServiceTest {
             transactionRepository,
             cardActivityRepository,
             paymentActivityRepository,
-            cryptoActivityRepository);
+            cryptoActivityRepository,
+            defaultRangeProperties());
+  }
+
+  private static AnalyticsRangeProperties defaultRangeProperties() {
+    return new AnalyticsRangeProperties(
+        Map.of(
+            Granularity.DAY,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.DAYS, 1, ChronoUnit.MONTHS),
+            Granularity.WEEK,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.WEEKS, 30, ChronoUnit.WEEKS),
+            Granularity.MONTH,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.MONTHS, 2, ChronoUnit.YEARS),
+            Granularity.YEAR,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.YEARS, 5, ChronoUnit.YEARS)));
   }
 
   @Test
@@ -100,6 +118,41 @@ class AnalyticsServiceTest {
   }
 
   @Test
+  void rejectedRangeCarriesStructuredExtensionProperties() {
+    Instant from = Instant.parse("2015-12-31T00:00:00Z");
+    Instant to = Instant.parse("2026-09-02T00:00:00Z");
+
+    assertThatThrownBy(
+            () ->
+                analyticsService.findTimeSeries(
+                    customerId,
+                    null,
+                    null,
+                    from,
+                    to,
+                    null,
+                    null,
+                    null,
+                    noFilters,
+                    Granularity.YEAR))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(
+            ex -> {
+              Map<String, Object> properties =
+                  ((ResponseStatusException) ex).getBody().getProperties();
+              assertThat(properties).containsEntry("granularity", Granularity.YEAR);
+              assertThat(properties).containsEntry("minAmount", 1L);
+              assertThat(properties).containsEntry("minUnit", "YEARS");
+              assertThat(properties).containsEntry("maxAmount", 5L);
+              assertThat(properties).containsEntry("maxUnit", "YEARS");
+              assertThat(((ResponseStatusException) ex).getBody().getDetail())
+                  .contains("YEAR")
+                  .contains("1 years")
+                  .contains("5 years");
+            });
+  }
+
+  @Test
   void propagates404WhenCustomerMissing() {
     doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND))
         .when(customerService)
@@ -122,7 +175,9 @@ class AnalyticsServiceTest {
   }
 
   @Test
-  void defaultsToOneMonthByDayWhenRangeOmitted() {
+  void defaultsToStartOfMonthByDayWhenRangeOmitted() {
+    when(transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(customerId))
+        .thenReturn(Optional.empty());
     when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
 
     AnalyticsTimeSeriesDto series =
@@ -132,6 +187,90 @@ class AnalyticsServiceTest {
     assertThat(series.from()).isNotNull();
     assertThat(series.to()).isNotNull();
     assertThat(series.buckets()).isNotEmpty();
+  }
+
+  @Test
+  void defaultsRangeToCustomersLatestActivityWhenOmitted() {
+    Instant latestActivity = Instant.now().minus(200, ChronoUnit.DAYS);
+    when(transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(customerId))
+        .thenReturn(Optional.of(card(new BigDecimal("10.00"), "EUR", latestActivity)));
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.to()).isEqualTo(latestActivity);
+  }
+
+  @Test
+  void defaultsFromToStartOfCurrentMonthWhenRangeOmitted() {
+    Instant latestActivity = Instant.parse("2026-02-13T00:00:00Z");
+    when(transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(customerId))
+        .thenReturn(Optional.of(card(new BigDecimal("10.00"), "EUR", latestActivity)));
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.to()).isEqualTo(latestActivity);
+    assertThat(series.from()).isEqualTo(Instant.parse("2026-02-01T00:00:00Z"));
+  }
+
+  @Test
+  void clampsStartOfMonthDefaultWhenTooCloseToMinimumSpan() {
+    Instant latestActivity = Instant.parse("2026-03-01T00:00:00Z");
+    when(transactionRepository.findTopByCustomerIdOrderByCreatedAtDesc(customerId))
+        .thenReturn(Optional.of(card(new BigDecimal("10.00"), "EUR", latestActivity)));
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.to()).isEqualTo(latestActivity);
+    assertThat(series.from()).isEqualTo(Instant.parse("2026-02-28T00:00:00Z"));
+  }
+
+  @Test
+  void fromOnlyDefaultsToUsingGranularitysMaxSpan() {
+    Instant from = Instant.parse("2026-08-03T00:00:00Z");
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, from, null, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.from()).isEqualTo(from);
+    assertThat(series.to()).isEqualTo(Instant.parse("2026-09-03T00:00:00Z"));
+  }
+
+  @Test
+  void fromOnlyClampsDefaultToTodayWhenMaxSpanWouldBeInTheFuture() {
+    Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+    Instant from = todayStart.minus(3, ChronoUnit.DAYS);
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, from, null, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.from()).isEqualTo(from);
+    assertThat(series.to()).isEqualTo(todayStart);
+  }
+
+  @Test
+  void toOnlyDefaultsFromUsingGranularitysMaxSpan() {
+    Instant to = Instant.parse("2026-09-03T00:00:00Z");
+    when(transactionRepository.findAll(any(Specification.class))).thenReturn(List.of());
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, null, to, null, null, null, noFilters, Granularity.DAY);
+
+    assertThat(series.to()).isEqualTo(to);
+    assertThat(series.from()).isEqualTo(Instant.parse("2026-08-03T00:00:00Z"));
   }
 
   @Test

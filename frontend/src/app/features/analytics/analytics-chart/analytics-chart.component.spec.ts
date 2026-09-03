@@ -40,6 +40,18 @@ describe('AnalyticsChartComponent', () => {
     expect(component.chartData().datasets).toEqual([]);
   });
 
+  it('has zero min-width when no data is set', () => {
+    fixture.detectChanges();
+    expect(component.minWidthPx()).toBe(0);
+  });
+
+  it('scales the min-width with the bucket count', () => {
+    component.data = series;
+    fixture.detectChanges();
+
+    expect(component.minWidthPx()).toBe(series.buckets.length * 28);
+  });
+
   it('renders a single bar dataset for the count metric', () => {
     component.metricType = 'count';
     component.data = series;

@@ -24,6 +24,15 @@ spring:
     problemdetails:
       enabled: true
 
+app:
+  analytics:
+    range-constraints:
+      bounds:
+        DAY: { min-amount: 1, min-unit: DAYS, max-amount: 3, max-unit: MONTHS }
+        WEEK: { min-amount: 1, min-unit: WEEKS, max-amount: 1, max-unit: YEARS }
+        MONTH: { min-amount: 1, min-unit: MONTHS, max-amount: 5, max-unit: YEARS }
+        YEAR: { min-amount: 1, min-unit: YEARS, max-amount: 20, max-unit: YEARS }
+
 server:
   port: ${SERVER_PORT:8080}
 

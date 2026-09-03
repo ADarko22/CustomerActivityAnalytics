@@ -54,7 +54,21 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
             transactionRepository,
             cardActivityRepository,
             paymentActivityRepository,
-            cryptoActivityRepository);
+            cryptoActivityRepository,
+            defaultRangeProperties());
+  }
+
+  private static AnalyticsRangeProperties defaultRangeProperties() {
+    return new AnalyticsRangeProperties(
+        Map.of(
+            Granularity.DAY,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.DAYS, 1, ChronoUnit.MONTHS),
+            Granularity.WEEK,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.WEEKS, 30, ChronoUnit.WEEKS),
+            Granularity.MONTH,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.MONTHS, 2, ChronoUnit.YEARS),
+            Granularity.YEAR,
+                new AnalyticsRangeProperties.Bound(1, ChronoUnit.YEARS, 5, ChronoUnit.YEARS)));
   }
 
   @Test
@@ -73,6 +87,20 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
     assertThat(series.buckets().get(0).transactionCount()).isEqualTo(2);
     assertThat(series.buckets().get(1).transactionCount()).isZero();
     assertThat(series.buckets().get(2).transactionCount()).isEqualTo(1);
+  }
+
+  @Test
+  void defaultsRangeToCustomersLatestActivityWhenOmitted() {
+    Instant latestActivity = Instant.now().minus(3, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+    saveCard(new BigDecimal("42.00"), "EUR", latestActivity);
+
+    AnalyticsTimeSeriesDto series =
+        analyticsService.findTimeSeries(
+            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+
+    long totalCount =
+        series.buckets().stream().mapToLong(AnalyticsBucketDto::transactionCount).sum();
+    assertThat(totalCount).isEqualTo(1);
   }
 
   @Test

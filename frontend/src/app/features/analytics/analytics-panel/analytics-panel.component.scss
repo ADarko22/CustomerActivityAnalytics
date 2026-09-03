@@ -2,8 +2,64 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   margin-bottom: 1rem;
+
+  mat-form-field {
+    width: 10rem;
+  }
+
+  .date-field {
+    width: 9.5rem;
+  }
+
+  .granularity-field {
+    width: 8rem;
+  }
+
+  .metric-field {
+    width: 13rem;
+  }
+}
+
+.clear-date-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 24px;
+}
+
+.chart-overlay-wrapper {
+  position: relative;
+}
+
+.filter-trigger {
+  vertical-align: middle;
+  color: rgba(0, 0, 0, 0.4);
+
+  &.filter-active {
+    color: var(--mat-sys-primary, #e65100);
+  }
+}
+
+.chart-filter-trigger {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  background: var(--mat-sys-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.filters-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+
+  mat-form-field {
+    width: 14rem;
+  }
 }
 
 .analytics-error {

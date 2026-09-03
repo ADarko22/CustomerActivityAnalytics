@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,18 +49,21 @@ public class AnalyticsService {
   private final CardActivityRepository cardActivityRepository;
   private final PaymentActivityRepository paymentActivityRepository;
   private final CryptoActivityRepository cryptoActivityRepository;
+  private final AnalyticsRangeProperties rangeProperties;
 
   public AnalyticsService(
       CustomerService customerService,
       TransactionRepository transactionRepository,
       CardActivityRepository cardActivityRepository,
       PaymentActivityRepository paymentActivityRepository,
-      CryptoActivityRepository cryptoActivityRepository) {
+      CryptoActivityRepository cryptoActivityRepository,
+      AnalyticsRangeProperties rangeProperties) {
     this.customerService = customerService;
     this.transactionRepository = transactionRepository;
     this.cardActivityRepository = cardActivityRepository;
     this.paymentActivityRepository = paymentActivityRepository;
     this.cryptoActivityRepository = cryptoActivityRepository;
+    this.rangeProperties = rangeProperties;
   }
 
   public AnalyticsTimeSeriesDto findTimeSeries(
@@ -75,22 +79,34 @@ public class AnalyticsService {
       Granularity granularity) {
     customerService.requireExists(customerId);
 
-    Instant effectiveTo = to != null ? to : Instant.now();
-    Instant effectiveFrom =
-        from != null ? from : effectiveTo.atZone(UTC).minusMonths(1).toInstant();
+    AnalyticsRangeProperties.Bound bound = rangeProperties.boundsFor(granularity);
+
+    Instant effectiveFrom;
+    Instant effectiveTo;
+    if (from != null) {
+      effectiveFrom = from;
+      effectiveTo =
+          to != null
+              ? to
+              : minInstant(plusSpan(from, bound.maxAmount(), bound.maxUnit()), todayStart());
+    } else if (to != null) {
+      effectiveTo = to;
+      effectiveFrom = minusSpan(to, bound.maxAmount(), bound.maxUnit());
+    } else {
+      effectiveTo = referenceInstant(customerId);
+      effectiveFrom = startOfMonthDefault(effectiveTo, bound);
+    }
     LocalDate fromDate = effectiveFrom.atZone(UTC).toLocalDate();
     LocalDate toDate = effectiveTo.atZone(UTC).toLocalDate();
 
-    if (!granularity.isRangeValid(fromDate, toDate)) {
+    if (!bound.isValid(fromDate, toDate)) {
       log.warn(
           "Rejected analytics range: customerId={}, granularity={}, from={}, to={}",
           customerId,
           granularity,
           fromDate,
           toDate);
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Range [" + fromDate + ", " + toDate + "] is not valid for granularity " + granularity);
+      throw invalidRangeException(granularity, bound, fromDate, toDate);
     }
 
     log.debug(
@@ -129,6 +145,84 @@ public class AnalyticsService {
 
     return new AnalyticsTimeSeriesDto(
         activityType, granularity, effectiveFrom, effectiveTo, buckets);
+  }
+
+  /**
+   * Anchors a caller-omitted {@code to} to the customer's own most recent transaction, rather than
+   * the wall clock, so a range-omitted request means "this customer's own recent activity", not an
+   * arbitrary window that may not overlap it at all. Falls back to {@link Instant#now()} only if
+   * the customer has no transactions yet.
+   */
+  private Instant referenceInstant(UUID customerId) {
+    return transactionRepository
+        .findTopByCustomerIdOrderByCreatedAtDesc(customerId)
+        .map(Transaction::getCreatedAt)
+        .orElseGet(Instant::now);
+  }
+
+  /** Today's start-of-day in UTC — the upper bound past which no transaction can ever exist. */
+  private static Instant todayStart() {
+    return LocalDate.now(UTC).atStartOfDay(UTC).toInstant();
+  }
+
+  private static Instant minInstant(Instant a, Instant b) {
+    return a.isBefore(b) ? a : b;
+  }
+
+  private static Instant plusSpan(Instant anchor, long amount, ChronoUnit unit) {
+    return anchor.atZone(UTC).toLocalDate().plus(amount, unit).atStartOfDay(UTC).toInstant();
+  }
+
+  private static Instant minusSpan(Instant anchor, long amount, ChronoUnit unit) {
+    return anchor.atZone(UTC).toLocalDate().minus(amount, unit).atStartOfDay(UTC).toInstant();
+  }
+
+  /**
+   * "1st of the month containing {@code to}", clamped forward so the resulting span never violates
+   * {@code bound}'s minimum (e.g. when {@code to} itself falls on the 1st of its month).
+   */
+  private static Instant startOfMonthDefault(Instant to, AnalyticsRangeProperties.Bound bound) {
+    LocalDate toDate = to.atZone(UTC).toLocalDate();
+    LocalDate startOfMonth = toDate.withDayOfMonth(1);
+    LocalDate minSafeFrom = toDate.minus(bound.minAmount(), bound.minUnit());
+    LocalDate fromDate = startOfMonth.isAfter(minSafeFrom) ? minSafeFrom : startOfMonth;
+    return fromDate.atStartOfDay(UTC).toInstant();
+  }
+
+  /**
+   * Builds a {@code 400} whose {@code detail} states the allowed window in human-readable terms,
+   * plus RFC 7807 extension properties (granularity, min/max span, requested dates) so the frontend
+   * can render its own message from structured data instead of parsing this string.
+   */
+  private ResponseStatusException invalidRangeException(
+      Granularity granularity, AnalyticsRangeProperties.Bound bound, LocalDate from, LocalDate to) {
+    String detail =
+        "Range ["
+            + from
+            + ", "
+            + to
+            + "] is not valid for granularity "
+            + granularity
+            + " — "
+            + granularity
+            + " requires a range between "
+            + formatSpan(bound.minAmount(), bound.minUnit())
+            + " and "
+            + formatSpan(bound.maxAmount(), bound.maxUnit())
+            + ".";
+    ResponseStatusException exception = new ResponseStatusException(HttpStatus.BAD_REQUEST, detail);
+    exception.getBody().setProperty("granularity", granularity);
+    exception.getBody().setProperty("minAmount", bound.minAmount());
+    exception.getBody().setProperty("minUnit", bound.minUnit().name());
+    exception.getBody().setProperty("maxAmount", bound.maxAmount());
+    exception.getBody().setProperty("maxUnit", bound.maxUnit().name());
+    exception.getBody().setProperty("requestedFrom", from);
+    exception.getBody().setProperty("requestedTo", to);
+    return exception;
+  }
+
+  private static String formatSpan(long amount, ChronoUnit unit) {
+    return amount + " " + unit.toString().toLowerCase();
   }
 
   private List<? extends Transaction> fetchRows(

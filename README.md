@@ -26,13 +26,28 @@ Gradle multi-module project:
   Domain model (Phase 2): `customers` and polymorphic `transactions` (`CARD`/`PAYMENT`/`CRYPTO`, JPA `JOINED`
   inheritance), exposed under `/api/v1` — customer search, a paginated/filterable/sortable transaction overview, and
   per-transaction polymorphic detail. Phase 3 adds `GET /customers/{id}/analytics`: transaction count and
-  amount-sum-by-currency, bucketed by day/week/month/year over a filterable range, with range↔granularity validation.
+  amount-sum-by-currency, bucketed by day/week/month/year over a filterable range. The day/week/month/year
+  range↔granularity bounds are configurable (`app.analytics.range-constraints` in `application.yml`, see
+  `DECISIONS.md` D16) and exposed read-only via `GET /api/v1/analytics/range-constraints` for the frontend to drive
+  its own validation UX; a rejected range returns a `ProblemDetail` `400` carrying structured bound/requested-range
+  extension properties alongside a human-readable message. An omitted `from` or `to` is derived from the other side
+  using the selected granularity's configured max span (never from an anchor unrelated to the provided side), capped
+  so it never resolves into the future; omitting both defaults to month-to-date relative to the customer's own
+  latest activity.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
-  app-wide. An "Analytics" tab (Phase 3) alongside the transaction table adds a date-range + granularity picker and a
-  count/amount-by-currency toggle, rendered with Chart.js via `ng2-charts` (see `DECISIONS.md` D15). `ng serve`
-  proxies `/api/**` to the backend via `frontend/proxy.conf.json`.
+  app-wide. A customer's Transactions/Analytics views are separate, URL-synced routes
+  (`customers/:customerId/transactions` and `.../analytics`, `mat-tab-nav-bar`-driven — both deep-linkable and
+  refresh-safe). The Analytics view renders a compact date-range + granularity + aggregation-type toolbar above the
+  chart (Chart.js via `ng2-charts`, see `DECISIONS.md` D15); the `From`/`To` pickers always reflect the actual range
+  being queried (including any side the backend computed on the caller's behalf), are bounded bidirectionally by
+  each other and capped at today using the backend's configured constraints (D16), and each has a "clear to default"
+  affordance. Granularity's allowed-window legend appears on hovering its label; the secondary filters (activity
+  type, status, currency, amount range, type-specific fields) collapse behind an icon that floats over the chart's
+  top-right corner (reusing the transaction table's menu-popover pattern) and changes color when any are active. The
+  chart scrolls horizontally when a range/granularity produces more buckets than fit its width. `ng serve` proxies
+  `/api/**` to the backend via `frontend/proxy.conf.json`.
 - `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is

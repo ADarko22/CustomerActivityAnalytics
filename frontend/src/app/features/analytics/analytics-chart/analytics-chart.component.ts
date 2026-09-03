@@ -6,6 +6,7 @@ import { AnalyticsTimeSeries } from '../../../core/models/analytics.model';
 export type AnalyticsMetric = 'count' | 'amount';
 
 const CURRENCY_COLORS = ['#3f51b5', '#e91e63', '#009688', '#ff9800', '#795548', '#607d8b'];
+const MIN_BAR_WIDTH_PX = 28;
 
 @Component({
   selector: 'app-analytics-chart',
@@ -68,6 +69,8 @@ export class AnalyticsChartComponent {
     responsive: true,
     maintainAspectRatio: false,
   };
+
+  readonly minWidthPx = computed(() => (this.series()?.buckets.length ?? 0) * MIN_BAR_WIDTH_PX);
 
   private formatLabel(bucketStart: string): string {
     return bucketStart.slice(0, 10);

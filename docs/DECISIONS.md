@@ -138,3 +138,29 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   `provideCharts(withDefaultRegisterables())`; `AnalyticsChartComponent` (`features/analytics/analytics-chart/`)
   wraps `<canvas baseChart>`, rendering a bar chart for transaction counts and a multi-series line chart (one line
   per currency) for amount sums.
+
+## D16 — Config-driven range↔granularity constraints, exposed via a dedicated endpoint · Accepted
+- **Decision:** PHASE_3_EXT round 2 moves the analytics range↔granularity bounds (previously hardcoded per constant
+  in `Granularity.isRangeValid`) into a `@ConfigurationProperties(prefix = "app.analytics.range-constraints")` record
+  (`AnalyticsRangeProperties`, bound via `@ConfigurationPropertiesScan`), with fail-fast `@PostConstruct` validation
+  that every `Granularity` has a configured bound. The active bounds are exposed read-only via a new
+  `GET /api/v1/analytics/range-constraints` endpoint (`AnalyticsConfigController`), returned as a
+  `Map<Granularity, RangeConstraintDto>`. The rejected-range `400` is built with `ResponseStatusException` and
+  carries the same bound data as RFC 7807 `ProblemDetail` extension properties (`granularity`, `minAmount`,
+  `minUnit`, `maxAmount`, `maxUnit`, `requestedFrom`, `requestedTo`) alongside a human-readable `detail` string, so
+  the frontend can render its own inline message from structured data instead of parsing backend prose.
+- **Context:** the user asked for the bounds to become configurable and for the frontend to pre-validate (disable
+  invalid granularities, constrain the datepicker, show a human error and a hover explainer) rather than only
+  reacting to a raw `400` message. A dedicated `RangeConstraintDto` (plain `String` unit names, not `ChronoUnit`
+  directly) was introduced instead of reusing `AnalyticsRangeProperties.Bound` as the wire type: `ChronoUnit`'s
+  overridden `toString()` ("Days") is used by Jackson's JSR-310 module ahead of the generic enum serializer, so
+  serializing `Bound` directly produced values inconsistent with every other enum in this API's JSON contract
+  (upper-case `name()`, e.g. "DAYS"). This was caught by `AnalyticsConfigControllerTest` and confirmed via `javap`
+  against the resolved `jackson-annotations`/`jackson-datatype-jsr310` jars before fixing.
+- **Consequence:** `Granularity` no longer owns validity logic (`bucketStart`/`next` only); `AnalyticsService` reads
+  bounds from `AnalyticsRangeProperties` and calls `Bound.isValid`. `application.yml` gains the project's first
+  custom `app.*` namespace. The frontend adds `AnalyticsConfigService` (fetches the constraints once) and a pure
+  `range-constraint.util.ts` (mirrors `LocalDate.plus(amount, ChronoUnit)` semantics, including month/year-end
+  clamping) that `AnalyticsPanelComponent` uses to disable out-of-range granularity options, bound the `to`
+  datepicker's `[min]`/`[max]`, render a tooltip summarizing all configured windows, and render any surviving `400`
+  as an inline structured message instead of raw backend text.

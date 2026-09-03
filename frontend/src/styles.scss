@@ -26,3 +26,9 @@ body {
   line-height: 1.5;
   background: var(--mat-sys-background);
 }
+
+// matTooltip panels render in the CDK overlay container (outside any component's view), so
+// per-granularity legend formatting needs a global rule rather than component-scoped SCSS.
+.legend-tooltip {
+  white-space: pre-line;
+}

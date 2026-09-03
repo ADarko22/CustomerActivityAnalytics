@@ -10,39 +10,6 @@ class GranularityTest {
   private static final LocalDate FROM = LocalDate.of(2026, 1, 15);
 
   @Test
-  void dayAllowsSpanFromOneDayToOneMonth() {
-    assertThat(Granularity.DAY.isRangeValid(FROM, FROM.minusDays(1))).isFalse();
-    assertThat(Granularity.DAY.isRangeValid(FROM, FROM)).isFalse();
-    assertThat(Granularity.DAY.isRangeValid(FROM, FROM.plusDays(1))).isTrue();
-    assertThat(Granularity.DAY.isRangeValid(FROM, FROM.plusMonths(1))).isTrue();
-    assertThat(Granularity.DAY.isRangeValid(FROM, FROM.plusMonths(1).plusDays(1))).isFalse();
-  }
-
-  @Test
-  void weekAllowsSpanFromOneWeekToThirtyWeeks() {
-    assertThat(Granularity.WEEK.isRangeValid(FROM, FROM.plusDays(6))).isFalse();
-    assertThat(Granularity.WEEK.isRangeValid(FROM, FROM.plusWeeks(1))).isTrue();
-    assertThat(Granularity.WEEK.isRangeValid(FROM, FROM.plusWeeks(30))).isTrue();
-    assertThat(Granularity.WEEK.isRangeValid(FROM, FROM.plusWeeks(30).plusDays(1))).isFalse();
-  }
-
-  @Test
-  void monthAllowsSpanFromOneMonthToTwoYears() {
-    assertThat(Granularity.MONTH.isRangeValid(FROM, FROM.plusDays(20))).isFalse();
-    assertThat(Granularity.MONTH.isRangeValid(FROM, FROM.plusMonths(1))).isTrue();
-    assertThat(Granularity.MONTH.isRangeValid(FROM, FROM.plusYears(2))).isTrue();
-    assertThat(Granularity.MONTH.isRangeValid(FROM, FROM.plusYears(2).plusDays(1))).isFalse();
-  }
-
-  @Test
-  void yearAllowsSpanFromOneYearToFiveYears() {
-    assertThat(Granularity.YEAR.isRangeValid(FROM, FROM.plusMonths(6))).isFalse();
-    assertThat(Granularity.YEAR.isRangeValid(FROM, FROM.plusYears(1))).isTrue();
-    assertThat(Granularity.YEAR.isRangeValid(FROM, FROM.plusYears(5))).isTrue();
-    assertThat(Granularity.YEAR.isRangeValid(FROM, FROM.plusYears(5).plusDays(1))).isFalse();
-  }
-
-  @Test
   void dayBucketStartIsTheDateItself() {
     assertThat(Granularity.DAY.bucketStart(FROM)).isEqualTo(FROM);
     assertThat(Granularity.DAY.next(FROM)).isEqualTo(FROM.plusDays(1));

@@ -1,100 +1,181 @@
 <div class="analytics-toolbar">
-  <mat-form-field appearance="outline">
-    <mat-label>Activity type</mat-label>
-    <mat-select [value]="activityType()" (selectionChange)="onActivityTypeChange($event.value)">
-      <mat-option value="ALL">All</mat-option>
-      <mat-option value="CARD">Card</mat-option>
-      <mat-option value="PAYMENT">Payment</mat-option>
-      <mat-option value="CRYPTO">Crypto</mat-option>
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Status</mat-label>
-    <mat-select (selectionChange)="onFilterChange('status', $event.value)">
-      <mat-option [value]="undefined">Any</mat-option>
-      @for (option of statusOptions; track option) {
-        <mat-option [value]="option">{{ option }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Currency</mat-label>
-    <input matInput (input)="onFilterChange('currency', $any($event.target).value)" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Min amount</mat-label>
-    <input
-      matInput
-      type="number"
-      (input)="onFilterChange('minAmount', $any($event.target).value)"
-    />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline">
-    <mat-label>Max amount</mat-label>
-    <input
-      matInput
-      type="number"
-      (input)="onFilterChange('maxAmount', $any($event.target).value)"
-    />
-  </mat-form-field>
-
-  @for (column of typeSpecificColumns(); track column.key) {
-    <mat-form-field appearance="outline">
-      <mat-label>{{ column.label }}</mat-label>
-      @switch (column.filterType) {
-        @case ('boolean') {
-          <mat-select (selectionChange)="onFilterChange(column.key, $event.value)">
-            <mat-option [value]="undefined">Any</mat-option>
-            <mat-option [value]="true">Yes</mat-option>
-            <mat-option [value]="false">No</mat-option>
-          </mat-select>
-        }
-        @default {
-          <input matInput (input)="onFilterChange(column.key, $any($event.target).value)" />
-        }
-      }
-    </mat-form-field>
-  }
-
-  <mat-form-field appearance="outline">
+  <mat-form-field appearance="outline" class="date-field">
     <mat-label>From</mat-label>
-    <input matInput [matDatepicker]="fromPicker" (dateChange)="onFromDateChange($event.value)" />
+    <input
+      matInput
+      [matDatepicker]="fromPicker"
+      [value]="fromDate()"
+      [min]="fromDatepickerMin()"
+      [max]="fromDatepickerMax()"
+      (dateChange)="onFromDateChange($event.value)"
+    />
+    @if (fromDate()) {
+      <button
+        type="button"
+        mat-icon-button
+        matSuffix
+        class="clear-date-button"
+        aria-label="Clear From date"
+        (click)="onFromDateChange(null)"
+      >
+        <fa-icon [icon]="faCircleXmark" size="xs" />
+      </button>
+    }
     <mat-datepicker-toggle matSuffix [for]="fromPicker" />
     <mat-datepicker #fromPicker />
   </mat-form-field>
 
-  <mat-form-field appearance="outline">
+  <mat-form-field appearance="outline" class="date-field">
     <mat-label>To</mat-label>
-    <input matInput [matDatepicker]="toPicker" (dateChange)="onToDateChange($event.value)" />
+    <input
+      matInput
+      [matDatepicker]="toPicker"
+      [value]="toDate()"
+      [min]="toDatepickerMin()"
+      [max]="toDatepickerMax()"
+      (dateChange)="onToDateChange($event.value)"
+    />
+    @if (toDate()) {
+      <button
+        type="button"
+        mat-icon-button
+        matSuffix
+        class="clear-date-button"
+        aria-label="Clear To date"
+        (click)="onToDateChange(null)"
+      >
+        <fa-icon [icon]="faCircleXmark" size="xs" />
+      </button>
+    }
     <mat-datepicker-toggle matSuffix [for]="toPicker" />
     <mat-datepicker #toPicker />
   </mat-form-field>
 
-  <mat-form-field appearance="outline">
-    <mat-label>Granularity</mat-label>
+  <mat-form-field appearance="outline" class="granularity-field">
+    <mat-label
+      [matTooltip]="constraintsTooltip()"
+      matTooltipClass="legend-tooltip"
+      matTooltipPosition="above"
+      >Granularity</mat-label
+    >
     <mat-select [value]="granularity()" (selectionChange)="onGranularityChange($event.value)">
       @for (option of granularityOptions; track option) {
-        <mat-option [value]="option">{{ option }}</mat-option>
+        <mat-option [value]="option" [disabled]="!availableGranularities().has(option)">
+          {{ option }}
+        </mat-option>
       }
     </mat-select>
   </mat-form-field>
 
-  <mat-button-toggle-group
-    [value]="metric()"
-    (change)="onMetricChange($event.value)"
-    aria-label="Aggregation type"
-  >
-    <mat-button-toggle value="count">Transaction Count</mat-button-toggle>
-    <mat-button-toggle value="amount">Amount by Currency</mat-button-toggle>
-  </mat-button-toggle-group>
+  <mat-form-field appearance="outline" class="metric-field">
+    <mat-label>Show</mat-label>
+    <mat-select [value]="metric()" (selectionChange)="onMetricChange($event.value)">
+      <mat-option value="count">Transaction Count</mat-option>
+      <mat-option value="amount">Amount by Currency</mat-option>
+    </mat-select>
+  </mat-form-field>
 </div>
 
-@if (errorMessage()) {
-  <div class="analytics-error">{{ errorMessage() }}</div>
+@if (errorDetail(); as error) {
+  <div class="analytics-error" role="alert">
+    @if (error.granularity && error.minAmount !== undefined && error.maxAmount !== undefined) {
+      <span>
+        {{ error.granularity }} requires a range between {{ error.minAmount }}
+        {{ error.minUnit?.toLowerCase() }} and {{ error.maxAmount }}
+        {{ error.maxUnit?.toLowerCase() }}.
+      </span>
+    } @else {
+      <span>{{ error.message }}</span>
+    }
+  </div>
 } @else {
-  <app-analytics-chart [data]="series()" [metricType]="metric()" />
+  <div class="chart-overlay-wrapper">
+    <button
+      type="button"
+      mat-icon-button
+      class="filter-trigger chart-filter-trigger"
+      [class.filter-active]="hasActiveSecondaryFilters()"
+      [matMenuTriggerFor]="filtersMenu"
+      aria-label="More filters"
+    >
+      <fa-icon [icon]="faFilter" size="xs" />
+    </button>
+    <mat-menu #filtersMenu="matMenu">
+      <!--
+        MatMenu's own internal panel wrapper (which projects this content via <ng-content>) has
+        `(click)="closed.emit('click')"` baked into its template — any click bubbling up through our
+        filter controls closes the menu before the interaction can land, no matter the backdrop
+        config. Stopping propagation here is the correct, necessary fix (same pattern as
+        TransactionTableComponent's per-column filter popover).
+      -->
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div class="filters-menu-content" (click)="$event.stopPropagation()">
+        <mat-form-field appearance="outline">
+          <mat-label>Activity type</mat-label>
+          <mat-select
+            [value]="activityType()"
+            (selectionChange)="onActivityTypeChange($event.value)"
+          >
+            <mat-option value="ALL">All</mat-option>
+            <mat-option value="CARD">Card</mat-option>
+            <mat-option value="PAYMENT">Payment</mat-option>
+            <mat-option value="CRYPTO">Crypto</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select (selectionChange)="onFilterChange('status', $event.value)">
+            <mat-option [value]="undefined">Any</mat-option>
+            @for (option of statusOptions; track option) {
+              <mat-option [value]="option">{{ option }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Currency</mat-label>
+          <input matInput (input)="onFilterChange('currency', $any($event.target).value)" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Min amount</mat-label>
+          <input
+            matInput
+            type="number"
+            (input)="onFilterChange('minAmount', $any($event.target).value)"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Max amount</mat-label>
+          <input
+            matInput
+            type="number"
+            (input)="onFilterChange('maxAmount', $any($event.target).value)"
+          />
+        </mat-form-field>
+
+        @for (column of typeSpecificColumns(); track column.key) {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ column.label }}</mat-label>
+            @switch (column.filterType) {
+              @case ('boolean') {
+                <mat-select (selectionChange)="onFilterChange(column.key, $event.value)">
+                  <mat-option [value]="undefined">Any</mat-option>
+                  <mat-option [value]="true">Yes</mat-option>
+                  <mat-option [value]="false">No</mat-option>
+                </mat-select>
+              }
+              @default {
+                <input matInput (input)="onFilterChange(column.key, $any($event.target).value)" />
+              }
+            }
+          </mat-form-field>
+        }
+      </div>
+    </mat-menu>
+
+    <app-analytics-chart [data]="series()" [metricType]="metric()" />
+  </div>
 }
