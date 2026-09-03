@@ -1,7 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { TransactionsPageComponent } from './transactions-page.component';
 
 describe('TransactionsPageComponent', () => {
@@ -14,6 +17,9 @@ describe('TransactionsPageComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideNoopAnimations(),
+        provideNativeDateAdapter(),
+        provideCharts(withDefaultRegisterables()),
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ customerId: 'customer-1' }) } },

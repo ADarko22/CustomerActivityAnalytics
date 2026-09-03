@@ -42,8 +42,8 @@ class TransactionServiceTest {
 
   private final UUID customerId = UUID.randomUUID();
 
-  private final TransactionService.TypeFilters noFilters =
-      new TransactionService.TypeFilters(
+  private final TransactionTypeFilters noFilters =
+      new TransactionTypeFilters(
           null, null, null, null, null, null, null, null, null, null, null, null);
 
   @BeforeEach

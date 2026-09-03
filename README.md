@@ -25,11 +25,14 @@ Gradle multi-module project:
 - `backend` — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource server.
   Domain model (Phase 2): `customers` and polymorphic `transactions` (`CARD`/`PAYMENT`/`CRYPTO`, JPA `JOINED`
   inheritance), exposed under `/api/v1` — customer search, a paginated/filterable/sortable transaction overview, and
-  per-transaction polymorphic detail.
+  per-transaction polymorphic detail. Phase 3 adds `GET /customers/{id}/analytics`: transaction count and
+  amount-sum-by-currency, bucketed by day/week/month/year over a filterable range, with range↔granularity validation.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
-  app-wide. `ng serve` proxies `/api/**` to the backend via `frontend/proxy.conf.json`.
+  app-wide. An "Analytics" tab (Phase 3) alongside the transaction table adds a date-range + granularity picker and a
+  count/amount-by-currency toggle, rendered with Chart.js via `ng2-charts` (see `DECISIONS.md` D15). `ng serve`
+  proxies `/api/**` to the backend via `frontend/proxy.conf.json`.
 - `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
@@ -49,6 +52,9 @@ Durable architectural decisions — including every choice that goes beyond the 
   until Phase 5 wires up real OAuth2/OIDC login and role-based access — see [DECISIONS.md](docs/DECISIONS.md) D13.
 - Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed
   dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically).
+- Analytics aggregation (Phase 3) is computed in memory over an unpaged, already-filtered row fetch — no DB-side
+  `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
+  [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.
 
 ## Implementation Journey
 

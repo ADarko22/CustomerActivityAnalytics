@@ -126,3 +126,15 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
 - **Consequence:** `TransactionTableComponent` no longer binds `matTooltip`/`rowSummary()`; clicking a row toggles an
   inline expanded detail row (Angular Material's `multiTemplateDataRows` pattern) instead. `MatTooltipModule` is no
   longer used by this component.
+
+## D15 — Chart.js + `ng2-charts` for the analytics graph · Accepted
+- **Decision:** Render the Phase 3 analytics time series with Chart.js via the `ng2-charts` Angular wrapper, instead
+  of `@swimlane/ngx-charts`.
+- **Context:** `CLAUDE.md`'s frontend stack names no charting library, and Angular Material ships no chart component,
+  so Phase 3 needs to pick one. `ngx-charts` is D3-based, pulling in a heavier transitive dependency tree for a
+  single bar/line chart; Chart.js is canvas-based, smaller, and `ng2-charts` provides a first-class Angular
+  standalone-component (`BaseChartDirective`) wrapper around it.
+- **Consequence:** `frontend/package.json` adds `chart.js` and `ng2-charts`; `app.config.ts` calls
+  `provideCharts(withDefaultRegisterables())`; `AnalyticsChartComponent` (`features/analytics/analytics-chart/`)
+  wraps `<canvas baseChart>`, rendering a bar chart for transaction counts and a multi-series line chart (one line
+  per currency) for amount sums.

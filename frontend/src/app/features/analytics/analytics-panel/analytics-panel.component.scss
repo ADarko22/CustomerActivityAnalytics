@@ -1,0 +1,12 @@
+.analytics-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.analytics-error {
+  color: var(--mat-sys-error, #b00020);
+  padding: 1rem;
+}

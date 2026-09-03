@@ -70,7 +70,7 @@ public class TransactionService {
       BigDecimal minAmount,
       BigDecimal maxAmount,
       String currency,
-      TypeFilters typeFilters,
+      TransactionTypeFilters typeFilters,
       Pageable pageable) {
     customerService.requireExists(customerId);
     validateSort(pageable.getSort(), activityType);
@@ -190,18 +190,4 @@ public class TransactionService {
       }
     }
   }
-
-  public record TypeFilters(
-      String cardType,
-      String merchantName,
-      String mccCode,
-      Boolean cardPresent,
-      String paymentMethod,
-      String senderAccount,
-      String receiverAccount,
-      String receiverBankCountry,
-      String blockchain,
-      String walletAddressFrom,
-      String walletAddressTo,
-      String exchangeName) {}
 }

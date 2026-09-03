@@ -115,3 +115,30 @@ SELECT ('e0000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
        'eth_tx_hash_' || gs,
        CASE WHEN gs % 2 = 0 THEN 'Coinbase' ELSE NULL END
 FROM generate_series(1, 6) AS gs;
+
+-- Angelo: a broader spread of CARD activity across the ~14 months preceding the seed's anchor date
+-- (2024-11-01 .. 2026-01-01, two transactions/month), so the analytics endpoint's WEEK/MONTH/YEAR
+-- granularities have real buckets to render, not just the tight Jan-2026 cluster above. Anchored to a
+-- fixed calendar date (not now()) so the seed stays deterministic; pick a `from`/`to` range covering
+-- this window in the date picker to see it (Phase 3).
+INSERT INTO transactions (transaction_id, customer_id, activity_type, amount, currency, status, created_at)
+SELECT ('f0000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+       '11111111-1111-1111-1111-111111111111',
+       'CARD',
+       (25 + gs * 4.10)::decimal(18, 2),
+       'EUR',
+       (ARRAY ['COMPLETED', 'PENDING', 'FAILED', 'REVERSED'])[1 + (gs % 4)],
+       TIMESTAMP '2024-11-01 00:00:00' + ((gs / 2) || ' months')::interval + ((gs % 2) || ' days')::interval
+FROM generate_series(0, 27) AS gs;
+
+INSERT INTO card_activity (transaction_id, card_pan, card_type, merchant_name, mcc_code, card_present,
+                            authorization_code, decline_reason)
+SELECT ('f0000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
+       '****' || lpad((2000 + gs)::text, 4, '0'),
+       (ARRAY ['DEBIT', 'CREDIT', 'PREPAID'])[1 + (gs % 3)],
+       (ARRAY ['Amazon', 'Starbucks', 'Uber', 'Carrefour', 'Apple Store'])[1 + (gs % 5)],
+       lpad((6000 + gs)::text, 4, '0'),
+       (gs % 2 = 0),
+       'AUTH-HIST' || gs,
+       CASE WHEN gs % 4 = 3 THEN 'Insufficient funds' ELSE NULL END
+FROM generate_series(0, 27) AS gs;

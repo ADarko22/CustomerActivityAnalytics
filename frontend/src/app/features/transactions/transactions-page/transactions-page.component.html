@@ -1,3 +1,14 @@
 <div class="transactions-page">
-  <app-transaction-table [customerId]="customerId()" />
+  <mat-tab-group>
+    <mat-tab label="Transactions">
+      <ng-template matTabContent>
+        <app-transaction-table [customerId]="customerId()" />
+      </ng-template>
+    </mat-tab>
+    <mat-tab label="Analytics">
+      <ng-template matTabContent>
+        <app-analytics-panel [customerId]="customerId()" />
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
 </div>

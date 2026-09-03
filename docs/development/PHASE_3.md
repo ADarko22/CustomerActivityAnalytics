@@ -1,6 +1,6 @@
 # Phase 3 — Analytics Features
 
-**Status:** NOT_STARTED
+**Status:** COMPLETE
 **Depends on:** Phase 2 — reuses the transaction data model and customer selection.
 
 ## Objective

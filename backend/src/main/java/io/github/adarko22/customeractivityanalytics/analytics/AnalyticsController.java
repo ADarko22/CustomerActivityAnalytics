@@ -1,13 +1,12 @@
-package io.github.adarko22.customeractivityanalytics.transaction;
+package io.github.adarko22.customeractivityanalytics.analytics;
 
-import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionDto;
+import io.github.adarko22.customeractivityanalytics.analytics.dto.AnalyticsTimeSeriesDto;
+import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionTypeFilters;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,16 +14,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class TransactionController {
+public class AnalyticsController {
 
-  private final TransactionService transactionService;
+  private final AnalyticsService analyticsService;
 
-  public TransactionController(TransactionService transactionService) {
-    this.transactionService = transactionService;
+  public AnalyticsController(AnalyticsService analyticsService) {
+    this.analyticsService = analyticsService;
   }
 
-  @GetMapping("/api/v1/customers/{customerId}/transactions")
-  public Page<TransactionDto> findOverview(
+  @GetMapping("/api/v1/customers/{customerId}/analytics")
+  public AnalyticsTimeSeriesDto findTimeSeries(
       @PathVariable UUID customerId,
       @RequestParam(required = false) ActivityType activityType,
       @RequestParam(required = false) TransactionStatus status,
@@ -47,8 +46,7 @@ public class TransactionController {
       @RequestParam(required = false) String walletAddressFrom,
       @RequestParam(required = false) String walletAddressTo,
       @RequestParam(required = false) String exchangeName,
-      @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
-          Pageable pageable) {
+      @RequestParam(defaultValue = "DAY") Granularity granularity) {
     TransactionTypeFilters typeFilters =
         new TransactionTypeFilters(
             cardType,
@@ -63,7 +61,7 @@ public class TransactionController {
             walletAddressFrom,
             walletAddressTo,
             exchangeName);
-    return transactionService.findOverview(
+    return analyticsService.findTimeSeries(
         customerId,
         activityType,
         status,
@@ -73,12 +71,6 @@ public class TransactionController {
         maxAmount,
         currency,
         typeFilters,
-        pageable);
-  }
-
-  @GetMapping("/api/v1/customers/{customerId}/transactions/{transactionId}")
-  public TransactionDto findDetail(
-      @PathVariable UUID customerId, @PathVariable UUID transactionId) {
-    return transactionService.findDetail(customerId, transactionId);
+        granularity);
   }
 }
