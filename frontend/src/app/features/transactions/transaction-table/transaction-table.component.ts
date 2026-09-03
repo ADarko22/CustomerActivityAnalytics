@@ -1,30 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  Component,
-  EventEmitter,
-  Input,
-  OnChanges,
-  Output,
-  SimpleChanges,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, computed, inject, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { Sort, MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { FaIconComponent } from '@fortawesome/angular-fontawesome';
+import { faFilter, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Subject, debounceTime } from 'rxjs';
-import {
-  ActivityType,
-  Transaction,
-  TransactionFilter,
-} from '../../../core/models/transaction.model';
+import { ActivityType, Transaction, TransactionFilter } from '../../../core/models/transaction.model';
 import { TransactionService } from '../../../core/services/transaction.service';
+import { TransactionDetailComponent } from '../transaction-detail/transaction-detail.component';
 import { COMMON_COLUMNS, ColumnDef, TYPE_COLUMNS } from './transaction-table.columns';
 
 const DEFAULT_SORT = 'createdAt,desc';
@@ -42,17 +32,22 @@ const FILTER_DEBOUNCE_MS = 300;
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
-    MatTooltipModule,
+    MatMenuModule,
+    MatButtonModule,
+    FaIconComponent,
+    TransactionDetailComponent,
   ],
   templateUrl: './transaction-table.component.html',
   styleUrl: './transaction-table.component.scss',
 })
 export class TransactionTableComponent implements OnChanges {
   @Input({ required: true }) customerId!: string;
-  @Output() readonly transactionSelected = new EventEmitter<Transaction>();
 
   private readonly transactionService = inject(TransactionService);
   private readonly filterChange$ = new Subject<void>();
+
+  readonly faFilter = faFilter;
+  readonly faXmark = faXmark;
 
   readonly activityType = signal<ActivityType | 'ALL'>('ALL');
   readonly filters = signal<TransactionFilter>({});
@@ -62,6 +57,7 @@ export class TransactionTableComponent implements OnChanges {
 
   readonly transactions = signal<Transaction[]>([]);
   readonly totalElements = signal(0);
+  readonly expandedTransactionId = signal<string | null>(null);
 
   readonly columns = computed<ColumnDef[]>(() => {
     const type = this.activityType();
@@ -71,11 +67,9 @@ export class TransactionTableComponent implements OnChanges {
   readonly displayedColumns = computed(() => this.columns().map((column) => column.key));
 
   constructor() {
-    this.filterChange$
-      .pipe(debounceTime(FILTER_DEBOUNCE_MS), takeUntilDestroyed())
-      .subscribe(() => {
-        this.load();
-      });
+    this.filterChange$.pipe(debounceTime(FILTER_DEBOUNCE_MS), takeUntilDestroyed()).subscribe(() => {
+      this.load();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -90,6 +84,7 @@ export class TransactionTableComponent implements OnChanges {
     this.filters.set({});
     this.pageIndex.set(0);
     this.sort.set(DEFAULT_SORT);
+    this.expandedTransactionId.set(null);
     this.load();
   }
 
@@ -97,6 +92,29 @@ export class TransactionTableComponent implements OnChanges {
     this.filters.update((current) => ({ ...current, [key]: value === '' ? undefined : value }));
     this.pageIndex.set(0);
     this.filterChange$.next();
+  }
+
+  clearFilter(key: string, ...inputs: HTMLInputElement[]): void {
+    inputs.forEach((input) => (input.value = ''));
+    this.filters.update((current) => ({ ...current, [key]: undefined }));
+    this.pageIndex.set(0);
+    this.filterChange$.next();
+  }
+
+  clearAmountFilter(minInput: HTMLInputElement, maxInput: HTMLInputElement): void {
+    minInput.value = '';
+    maxInput.value = '';
+    this.filters.update((current) => ({ ...current, minAmount: undefined, maxAmount: undefined }));
+    this.pageIndex.set(0);
+    this.filterChange$.next();
+  }
+
+  isFilterActive(column: ColumnDef): boolean {
+    if (column.filterType === 'amount') {
+      return this.filters().minAmount !== undefined || this.filters().maxAmount !== undefined;
+    }
+    const value = (this.filters() as Record<string, unknown>)[column.key];
+    return value !== undefined && value !== null && value !== '';
   }
 
   onSortChange(sort: Sort): void {
@@ -110,12 +128,10 @@ export class TransactionTableComponent implements OnChanges {
     this.load();
   }
 
-  onRowClick(transaction: Transaction): void {
-    this.transactionSelected.emit(transaction);
-  }
-
-  rowSummary(transaction: Transaction): string {
-    return `${transaction.status} · ${transaction.amount} ${transaction.currency}`;
+  toggleExpand(row: Transaction): void {
+    this.expandedTransactionId.set(
+      this.expandedTransactionId() === row.transactionId ? null : row.transactionId,
+    );
   }
 
   private load(): void {

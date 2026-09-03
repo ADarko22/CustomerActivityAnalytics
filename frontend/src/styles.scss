@@ -3,11 +3,18 @@
 :root {
   @include mat.theme(
     (
-      color: mat.$violet-palette,
+      color: mat.$orange-palette,
       typography: Roboto,
       density: 0,
     )
   );
+
+  // Keep the dominant surface a clean white/near-white against the orange primary,
+  // rather than the M3-generated tinted-neutral default.
+  --mat-sys-surface: #ffffff;
+  --mat-sys-surface-container: #fdfaf7;
+  --mat-sys-surface-container-low: #fffdfb;
+  --mat-sys-background: #ffffff;
 }
 
 html,
@@ -15,4 +22,7 @@ body {
   height: 100%;
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--mat-sys-background);
 }

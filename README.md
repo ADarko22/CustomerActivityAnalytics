@@ -26,9 +26,10 @@ Gradle multi-module project:
   Domain model (Phase 2): `customers` and polymorphic `transactions` (`CARD`/`PAYMENT`/`CRYPTO`, JPA `JOINED`
   inheritance), exposed under `/api/v1` — customer search, a paginated/filterable/sortable transaction overview, and
   per-transaction polymorphic detail.
-- `frontend` — Angular 22 + Angular Material. Customer search (autocomplete), a server-driven transaction table with
-  an activity-type filter and per-column filters/sort, and a transaction detail view (Phase 2). `ng serve` proxies
-  `/api/**` to the backend via `frontend/proxy.conf.json`.
+- `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
+  transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
+  and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
+  app-wide. `ng serve` proxies `/api/**` to the backend via `frontend/proxy.conf.json`.
 - `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
@@ -73,7 +74,8 @@ sq_pe_assignment.pdf → PROJECT_SPECIFICATION.md → DECISIONS.md → PHASE_N.m
 ### CLI Interactive Loop
 
 Each phase is driven manually through Claude CLI. Commands take the phase id **without** the `.md` extension
-(e.g. `PHASE_1`). The loop for a phase `N`:
+(e.g. `PHASE_1`; a follow-up refinement scoped to an already-completed phase, such as a UX-only pass, uses an `_EXT`
+suffix, e.g. `PHASE_2_EXT`, and runs through the identical loop below). The loop for a phase `N`:
 
 1. **Plan** — `claude /plan-phase PHASE_N`
    Reads the spec, decisions, and `PHASE_N.md`; writes `docs/development/PHASE_N_PLAN.md`; sets `Status: PLANNED`;

@@ -92,7 +92,7 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
 - **Consequence:** `frontend/karma.conf.js` launches a `ChromeHeadlessCI` custom launcher; CI (`.github/workflows/
   ci.yml`) needs no separate Chrome setup step.
 
-## D12 — Transaction-table row tooltip restores the spec's "hover" behavior · Accepted
+## D12 — Transaction-table row tooltip restores the spec's "hover" behavior · Superseded by D14
 - **Decision:** `PROJECT_SPECIFICATION.md` Feature 2 shows activity-specific details "when selecting the activity or
   hovering on it," but `PHASE_2.md`'s functional requirement only describes the full detail card appearing "on
   selecting." Phase 2 reconciles both: the full `TransactionDetailDto` card stays select-only (matching the phase
@@ -114,3 +114,15 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   to Phase 5, implying every earlier phase's endpoints should be open.
 - **Consequence:** All endpoints are unauthenticated through Phase 2-4; `SecurityConfig` is expected to be replaced
   (not merely extended) when Phase 5 implements D2's Keycloak-backed OAuth2/PKCE flow and role-based access.
+
+## D14 — Row expand-to-detail supersedes the D12 hover tooltip · Accepted
+- **Decision:** Phase 2 EXT replaces the bottom-of-page transaction detail panel with an inline, click-to-expand
+  table row (the full `TransactionDto` detail rendered directly beneath its owning row). The `matTooltip` row summary
+  introduced by D12 is removed.
+- **Context:** D12's one-line hover summary (status, amount, currency) existed to restore `PROJECT_SPECIFICATION.md`
+  Feature 2's "hovering" affordance without duplicating the full detail card, which at the time was a bottom-of-page
+  panel requiring a click plus a scroll. Once the full detail is one click away, inline, directly under the row, the
+  tooltip delivers strictly less information no faster — a redundant second affordance for no remaining benefit.
+- **Consequence:** `TransactionTableComponent` no longer binds `matTooltip`/`rowSummary()`; clicking a row toggles an
+  inline expanded detail row (Angular Material's `multiTemplateDataRows` pattern) instead. `MatTooltipModule` is no
+  longer used by this component.

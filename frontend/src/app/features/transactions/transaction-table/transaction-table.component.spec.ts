@@ -1,8 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { By } from '@angular/platform-browser';
+import { CardTransaction } from '../../../core/models/transaction.model';
 import { TransactionTableComponent } from './transaction-table.component';
 
 describe('TransactionTableComponent', () => {
@@ -12,10 +16,26 @@ describe('TransactionTableComponent', () => {
   const customerId = 'customer-1';
   const emptyPage = { content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 };
 
+  const card1: CardTransaction = {
+    transactionId: 'txn-1',
+    customerId,
+    activityType: 'CARD',
+    amount: 10,
+    currency: 'EUR',
+    status: 'COMPLETED',
+    createdAt: '2026-01-01T00:00:00Z',
+    cardPan: '****1234',
+    cardType: 'DEBIT',
+    merchantName: 'Amazon',
+    mccCode: '5732',
+    cardPresent: true,
+  };
+  const card2: CardTransaction = { ...card1, transactionId: 'txn-2' };
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [TransactionTableComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations()],
     });
     fixture = TestBed.createComponent(TransactionTableComponent);
     component = fixture.componentInstance;
@@ -32,8 +52,17 @@ describe('TransactionTableComponent', () => {
     return request.url === `/api/v1/customers/${customerId}/transactions`;
   }
 
-  function flushInitial(): void {
-    httpMock.expectOne(overviewUrl).flush(emptyPage);
+  function flushInitial(page: object = emptyPage): void {
+    httpMock.expectOne(overviewUrl).flush(page);
+    fixture.detectChanges();
+  }
+
+  function openFilterMenu(ariaLabel: string): void {
+    const button = fixture.debugElement
+      .queryAll(By.directive(MatMenuTrigger))
+      .find((el) => (el.nativeElement as HTMLElement).getAttribute('aria-label') === ariaLabel);
+    button?.injector.get(MatMenuTrigger).openMenu();
+    fixture.detectChanges();
   }
 
   it('loads the overview with default sort and pagination on init', () => {
@@ -42,6 +71,15 @@ describe('TransactionTableComponent', () => {
     expect(req.request.params.get('page')).toBe('0');
     expect(req.request.params.get('size')).toBe('20');
     req.flush(emptyPage);
+  });
+
+  it('renders a sort-labeled span and a filter button per filterable column header', () => {
+    flushInitial();
+
+    const headerText = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(headerText).toContain('Currency');
+    expect(fixture.debugElement.query(By.css('.header-label'))).toBeTruthy();
+    expect(fixture.debugElement.query(By.css('.filter-trigger'))).toBeTruthy();
   });
 
   it('requests the new page and size on paginator change', () => {
@@ -78,6 +116,67 @@ describe('TransactionTableComponent', () => {
     req.flush(emptyPage);
   }));
 
+  it('opens the filter popover from the header icon and applies the typed value', fakeAsync(() => {
+    flushInitial();
+
+    openFilterMenu('Filter Currency');
+    const input = document.querySelector('.mat-mdc-menu-panel input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    input.value = 'EUR';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+
+    const req = httpMock.expectOne(overviewUrl);
+    expect(req.request.params.get('currency')).toBe('EUR');
+    req.flush(emptyPage);
+  }));
+
+  it('stays open when a control inside it is clicked (regression: MatMenu closes on any bubbled click by default)', fakeAsync(() => {
+    flushInitial();
+
+    openFilterMenu('Filter Currency');
+    const input = document.querySelector('.mat-mdc-menu-panel input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    tick();
+    fixture.detectChanges();
+
+    expect(document.querySelector('.mat-mdc-menu-panel')).withContext(
+      'the popover must stay open when clicking a control inside it',
+    ).toBeTruthy();
+  }));
+
+  it('clears a select column filter by choosing "Any"', fakeAsync(() => {
+    flushInitial();
+    component.onFilterChange('status', 'COMPLETED');
+    tick(300);
+    httpMock.expectOne(overviewUrl).flush(emptyPage);
+
+    component.onFilterChange('status', undefined);
+    tick(300);
+
+    const req = httpMock.expectOne(overviewUrl);
+    expect(req.request.params.has('status')).toBeFalse();
+    req.flush(emptyPage);
+  }));
+
+  it('clears a text column filter via the inline Clear control', fakeAsync(() => {
+    flushInitial();
+    component.onFilterChange('currency', 'EUR');
+    tick(300);
+    httpMock.expectOne(overviewUrl).flush(emptyPage);
+
+    const fakeInput = document.createElement('input');
+    component.clearFilter('currency', fakeInput);
+    expect(fakeInput.value).toBe('');
+    tick(300);
+
+    const req = httpMock.expectOne(overviewUrl);
+    expect(req.request.params.has('currency')).toBeFalse();
+    req.flush(emptyPage);
+  }));
+
   it('adds type-specific columns and requeries when selecting a type', () => {
     flushInitial();
 
@@ -87,5 +186,47 @@ describe('TransactionTableComponent', () => {
     const req = httpMock.expectOne(overviewUrl);
     expect(req.request.params.get('activityType')).toBe('CARD');
     req.flush(emptyPage);
+  });
+
+  it('expands a row to show its detail, and collapses it when clicked again', () => {
+    flushInitial({ content: [card1], totalElements: 1, totalPages: 1, number: 0, size: 20 });
+
+    expect(component.expandedTransactionId()).toBeNull();
+    const row = fixture.debugElement.queryAll(By.css('tr.transaction-row'))[0];
+    const detailRow = fixture.debugElement.queryAll(By.css('tr.detail-row'))[0]
+      .nativeElement as HTMLElement;
+    expect(detailRow.classList.contains('detail-row-open')).toBeFalse();
+
+    row.triggerEventHandler('click', null);
+    fixture.detectChanges();
+    expect(component.expandedTransactionId()).toBe('txn-1');
+    expect(detailRow.classList.contains('detail-row-open')).toBeTrue();
+    expect(detailRow.textContent).toContain('Amazon');
+
+    row.triggerEventHandler('click', null);
+    fixture.detectChanges();
+    expect(component.expandedTransactionId()).toBeNull();
+    expect(detailRow.classList.contains('detail-row-open')).toBeFalse();
+  });
+
+  it('expanding a second row collapses the first', () => {
+    flushInitial({ content: [card1, card2], totalElements: 2, totalPages: 1, number: 0, size: 20 });
+
+    const rows = fixture.debugElement.queryAll(By.css('tr.transaction-row'));
+    const detailRows = fixture.debugElement.queryAll(By.css('tr.detail-row'));
+
+    rows[0].triggerEventHandler('click', null);
+    fixture.detectChanges();
+    expect((detailRows[0].nativeElement as HTMLElement).classList.contains('detail-row-open')).toBeTrue();
+    expect(
+      (detailRows[1].nativeElement as HTMLElement).classList.contains('detail-row-open'),
+    ).toBeFalse();
+
+    rows[1].triggerEventHandler('click', null);
+    fixture.detectChanges();
+    expect(
+      (detailRows[0].nativeElement as HTMLElement).classList.contains('detail-row-open'),
+    ).toBeFalse();
+    expect((detailRows[1].nativeElement as HTMLElement).classList.contains('detail-row-open')).toBeTrue();
   });
 });

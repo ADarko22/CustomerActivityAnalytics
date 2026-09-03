@@ -2,7 +2,6 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { Transaction } from '../../../core/models/transaction.model';
 import { TransactionsPageComponent } from './transactions-page.component';
 
 describe('TransactionsPageComponent', () => {
@@ -35,16 +34,5 @@ describe('TransactionsPageComponent', () => {
     httpMock
       .expectOne((r) => r.url === '/api/v1/customers/customer-1/transactions')
       .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 });
-  });
-
-  it('shows transaction detail once a row is selected', () => {
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers/customer-1/transactions')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 });
-
-    expect(fixture.componentInstance.selectedTransaction()).toBeNull();
-    const transaction = { transactionId: 't1' } as unknown as Transaction;
-    fixture.componentInstance.onTransactionSelected(transaction);
-    expect(fixture.componentInstance.selectedTransaction()).toBe(transaction);
   });
 });
