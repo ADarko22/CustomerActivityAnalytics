@@ -22,7 +22,7 @@
       </button>
     }
     <mat-datepicker-toggle matSuffix [for]="fromPicker" />
-    <mat-datepicker #fromPicker />
+    <mat-datepicker #fromPicker [startAt]="fromDatepickerMin()" />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="date-field">
@@ -48,7 +48,7 @@
       </button>
     }
     <mat-datepicker-toggle matSuffix [for]="toPicker" />
-    <mat-datepicker #toPicker />
+    <mat-datepicker #toPicker [startAt]="toDatepickerMax()" />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="granularity-field">

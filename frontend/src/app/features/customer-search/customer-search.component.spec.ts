@@ -70,4 +70,17 @@ describe('CustomerSearchComponent', () => {
 
     expect(router.navigate).toHaveBeenCalledWith(['/customers', 'abc-123', 'transactions']);
   });
+
+  it('preserves the analytics tab when switching customers from the analytics route', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/customers/old-id/analytics');
+    spyOn(router, 'navigate');
+
+    const customer = { customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' };
+    component.onCustomerSelected({
+      option: { value: customer },
+    } as unknown as MatAutocompleteSelectedEvent);
+
+    expect(router.navigate).toHaveBeenCalledWith(['/customers', 'abc-123', 'analytics']);
+  });
 });

@@ -110,7 +110,9 @@ export class AnalyticsPanelComponent implements OnChanges {
     if (this.activityType() !== 'ALL') {
       return true;
     }
-    return Object.values(this.filters()).some((value) => value !== undefined && value !== null && value !== '');
+    return Object.values(this.filters()).some(
+      (value) => value !== undefined && value !== null && value !== '',
+    );
   });
 
   readonly availableGranularities = computed<ReadonlySet<Granularity>>(() => {
@@ -166,6 +168,9 @@ export class AnalyticsPanelComponent implements OnChanges {
     }).join('\n');
   });
 
+  private fromTouched = false;
+  private toTouched = false;
+
   constructor() {
     this.analyticsConfigService.getRangeConstraints().subscribe((constraints) => {
       this.rangeConstraints.set(constraints);
@@ -177,6 +182,10 @@ export class AnalyticsPanelComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['customerId']) {
+      this.fromTouched = false;
+      this.toTouched = false;
+      this.fromDate.set(null);
+      this.toDate.set(null);
       this.load();
     }
   }
@@ -193,12 +202,14 @@ export class AnalyticsPanelComponent implements OnChanges {
   }
 
   onFromDateChange(date: Date | null): void {
+    this.fromTouched = true;
     this.fromDate.set(date);
     this.clearToIfNowInvalid();
     this.change$.next();
   }
 
   onToDateChange(date: Date | null): void {
+    this.toTouched = true;
     this.toDate.set(date);
     this.change$.next();
   }
@@ -234,8 +245,12 @@ export class AnalyticsPanelComponent implements OnChanges {
     this.analyticsService.findTimeSeries(this.customerId, filter, this.granularity()).subscribe({
       next: (series) => {
         this.series.set(series);
-        this.fromDate.set(new Date(series.from));
-        this.toDate.set(new Date(series.to));
+        if (!this.fromTouched) {
+          this.fromDate.set(new Date(series.from));
+        }
+        if (!this.toTouched) {
+          this.toDate.set(new Date(series.to));
+        }
       },
       error: (error: HttpErrorResponse) => {
         this.series.set(null);

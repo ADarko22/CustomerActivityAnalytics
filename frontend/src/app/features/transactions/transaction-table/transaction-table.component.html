@@ -84,6 +84,33 @@
                     </mat-select>
                   </mat-form-field>
                 }
+                @case ('date') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>From</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="fromDatePicker"
+                      [value]="fromDateFilter()"
+                      (dateChange)="onFromDateFilterChange($event.value)"
+                    />
+                    <mat-datepicker-toggle matSuffix [for]="fromDatePicker" />
+                    <mat-datepicker #fromDatePicker />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>To</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="toDatePicker"
+                      [value]="toDateFilter()"
+                      (dateChange)="onToDateFilterChange($event.value)"
+                    />
+                    <mat-datepicker-toggle matSuffix [for]="toDatePicker" />
+                    <mat-datepicker #toDatePicker />
+                  </mat-form-field>
+                  <button type="button" mat-button (click)="clearDateFilter()">
+                    <fa-icon [icon]="faXmark" size="xs" /> Clear
+                  </button>
+                }
                 @case ('amount') {
                   <mat-form-field appearance="outline">
                     <mat-label>Min amount</mat-label>

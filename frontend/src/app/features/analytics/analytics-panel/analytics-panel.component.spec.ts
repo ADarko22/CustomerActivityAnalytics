@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepicker } from '@angular/material/datepicker';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -255,9 +256,7 @@ describe('AnalyticsPanelComponent', () => {
       .find(
         (el) => (el.nativeElement as HTMLElement).getAttribute('aria-label') === 'More filters',
       );
-    expect(
-      (trigger?.nativeElement as HTMLElement).classList.contains('filter-active'),
-    ).toBeFalse();
+    expect((trigger?.nativeElement as HTMLElement).classList.contains('filter-active')).toBeFalse();
   });
 
   it('marks the filter icon active when the activity type changes', fakeAsync(() => {
@@ -274,9 +273,7 @@ describe('AnalyticsPanelComponent', () => {
       .find(
         (el) => (el.nativeElement as HTMLElement).getAttribute('aria-label') === 'More filters',
       );
-    expect(
-      (trigger?.nativeElement as HTMLElement).classList.contains('filter-active'),
-    ).toBeTrue();
+    expect((trigger?.nativeElement as HTMLElement).classList.contains('filter-active')).toBeTrue();
   }));
 
   it('marks the filter icon active when a secondary filter is set, and clears when reset', fakeAsync(() => {
@@ -295,7 +292,7 @@ describe('AnalyticsPanelComponent', () => {
     expect(component.hasActiveSecondaryFilters()).toBeFalse();
   }));
 
-  it('populates the To picker from the server-confirmed range when only From was picked', fakeAsync(() => {
+  it('uses the server-computed To for the chart, but leaves the To picker blank once explicitly cleared', fakeAsync(() => {
     flushAnalyticsRequest(); // fromDate/toDate now both set from the fixture's echoed defaults
 
     // Clearing To alone leaves From at its already-synced value, reproducing a from-only request.
@@ -306,7 +303,24 @@ describe('AnalyticsPanelComponent', () => {
     expect(req.request.params.has('to')).toBeFalse();
     req.flush({ ...emptySeries, to: '2026-02-15T00:00:00.000Z' });
 
-    expect(component.toDate()).toEqual(new Date('2026-02-15T00:00:00.000Z'));
+    // The chart still renders using the server's computed range...
+    expect(component.series()?.to).toBe('2026-02-15T00:00:00.000Z');
+    // ...but the picker itself stays under the operator's control once explicitly cleared.
+    expect(component.toDate()).toBeNull();
+  }));
+
+  it('stays blank across multiple subsequent reloads once explicitly cleared (e.g. while picking a granularity)', fakeAsync(() => {
+    flushAnalyticsRequest();
+
+    component.onToDateChange(null);
+    tick(300);
+    flushAnalyticsRequest();
+    expect(component.toDate()).toBeNull();
+
+    component.onGranularityChange('MONTH');
+    tick(300);
+    flushAnalyticsRequest();
+    expect(component.toDate()).toBeNull();
   }));
 
   it("computes the From datepicker's bounds from To plus the selected granularity", fakeAsync(() => {
@@ -367,4 +381,53 @@ describe('AnalyticsPanelComponent', () => {
     const tooltip = tooltipDebugEl.injector.get(MatTooltip);
     expect(tooltip.message).toBe(component.constraintsTooltip());
   });
+
+  it("points the To calendar's startAt at the boundary that maximizes the window", fakeAsync(() => {
+    flushAnalyticsRequest();
+
+    component.onFromDateChange(new Date(2026, 0, 15));
+    tick(300);
+    flushAnalyticsRequest();
+    fixture.detectChanges();
+
+    const pickers = fixture.debugElement.queryAll(By.directive(MatDatepicker));
+    const toPicker = pickers[1].injector.get(MatDatepicker);
+    expect(toPicker.startAt).toEqual(component.toDatepickerMax());
+  }));
+
+  it("points the From calendar's startAt at the boundary that maximizes the window", fakeAsync(() => {
+    flushAnalyticsRequest();
+
+    component.onToDateChange(new Date(2026, 1, 15));
+    tick(300);
+    flushAnalyticsRequest();
+    fixture.detectChanges();
+
+    const pickers = fixture.debugElement.queryAll(By.directive(MatDatepicker));
+    const fromPicker = pickers[0].injector.get(MatDatepicker);
+    expect(fromPicker.startAt).toEqual(component.fromDatepickerMin());
+  }));
+
+  it('resets the date pickers and touched-state when switching customers', fakeAsync(() => {
+    flushAnalyticsRequest();
+    component.onFromDateChange(new Date(2026, 0, 15));
+    tick(300);
+    flushAnalyticsRequest();
+    expect(component.fromDate()).toEqual(new Date(2026, 0, 15));
+
+    fixture.componentRef.setInput('customerId', 'customer-2');
+    fixture.detectChanges();
+
+    // Immediately after the switch, before the new load resolves, the pickers are blank again.
+    expect(component.fromDate()).toBeNull();
+    expect(component.toDate()).toBeNull();
+
+    // The new load's response is now free to sync both sides again (touched-state was reset).
+    const req = httpMock.expectOne(
+      (r: { url: string }) => r.url === '/api/v1/customers/customer-2/analytics',
+    );
+    req.flush(emptySeries);
+    expect(component.fromDate()).toEqual(new Date(emptySeries.from));
+    expect(component.toDate()).toEqual(new Date(emptySeries.to));
+  }));
 });

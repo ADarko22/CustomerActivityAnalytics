@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatMenuTrigger } from '@angular/material/menu';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
@@ -35,7 +36,12 @@ describe('TransactionTableComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [TransactionTableComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideNoopAnimations(),
+        provideNativeDateAdapter(),
+      ],
     });
     fixture = TestBed.createComponent(TransactionTableComponent);
     component = fixture.componentInstance;
@@ -142,9 +148,9 @@ describe('TransactionTableComponent', () => {
     tick();
     fixture.detectChanges();
 
-    expect(document.querySelector('.mat-mdc-menu-panel')).withContext(
-      'the popover must stay open when clicking a control inside it',
-    ).toBeTruthy();
+    expect(document.querySelector('.mat-mdc-menu-panel'))
+      .withContext('the popover must stay open when clicking a control inside it')
+      .toBeTruthy();
   }));
 
   it('clears a select column filter by choosing "Any"', fakeAsync(() => {
@@ -217,7 +223,9 @@ describe('TransactionTableComponent', () => {
 
     rows[0].triggerEventHandler('click', null);
     fixture.detectChanges();
-    expect((detailRows[0].nativeElement as HTMLElement).classList.contains('detail-row-open')).toBeTrue();
+    expect(
+      (detailRows[0].nativeElement as HTMLElement).classList.contains('detail-row-open'),
+    ).toBeTrue();
     expect(
       (detailRows[1].nativeElement as HTMLElement).classList.contains('detail-row-open'),
     ).toBeFalse();
@@ -227,6 +235,52 @@ describe('TransactionTableComponent', () => {
     expect(
       (detailRows[0].nativeElement as HTMLElement).classList.contains('detail-row-open'),
     ).toBeFalse();
-    expect((detailRows[1].nativeElement as HTMLElement).classList.contains('detail-row-open')).toBeTrue();
+    expect(
+      (detailRows[1].nativeElement as HTMLElement).classList.contains('detail-row-open'),
+    ).toBeTrue();
   });
+
+  it('filters by a date range from the Date column popover, and clears it', fakeAsync(() => {
+    flushInitial();
+
+    openFilterMenu('Filter Date');
+    component.onFromDateFilterChange(new Date(2026, 0, 1));
+    tick(300);
+    httpMock.expectOne(overviewUrl).flush(emptyPage);
+
+    component.onToDateFilterChange(new Date(2026, 0, 31));
+    tick(300);
+    const req = httpMock.expectOne(overviewUrl);
+    expect(req.request.params.get('from')).toBe(new Date(2026, 0, 1).toISOString());
+    expect(req.request.params.get('to')).toBe(new Date(2026, 0, 31).toISOString());
+    req.flush(emptyPage);
+
+    component.clearDateFilter();
+    tick(300);
+    const clearedReq = httpMock.expectOne(overviewUrl);
+    expect(clearedReq.request.params.has('from')).toBeFalse();
+    expect(clearedReq.request.params.has('to')).toBeFalse();
+    clearedReq.flush(emptyPage);
+  }));
+
+  it('resets filters and activity type when switching customers', fakeAsync(() => {
+    flushInitial();
+
+    component.onActivityTypeChange('CARD');
+    httpMock.expectOne(overviewUrl).flush(emptyPage);
+    component.onFilterChange('currency', 'EUR');
+    tick(300);
+    httpMock.expectOne(overviewUrl).flush(emptyPage);
+
+    fixture.componentRef.setInput('customerId', 'customer-2');
+    fixture.detectChanges();
+
+    expect(component.activityType()).toBe('ALL');
+    expect(component.filters()).toEqual({});
+    const req = httpMock.expectOne(
+      (r: { url: string }) => r.url === '/api/v1/customers/customer-2/transactions',
+    );
+    expect(req.request.params.has('currency')).toBeFalse();
+    req.flush(emptyPage);
+  }));
 });

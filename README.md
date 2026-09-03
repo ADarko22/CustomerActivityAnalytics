@@ -39,15 +39,23 @@ Gradle multi-module project:
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
   app-wide. A customer's Transactions/Analytics views are separate, URL-synced routes
   (`customers/:customerId/transactions` and `.../analytics`, `mat-tab-nav-bar`-driven — both deep-linkable and
-  refresh-safe). The Analytics view renders a compact date-range + granularity + aggregation-type toolbar above the
-  chart (Chart.js via `ng2-charts`, see `DECISIONS.md` D15); the `From`/`To` pickers always reflect the actual range
-  being queried (including any side the backend computed on the caller's behalf), are bounded bidirectionally by
-  each other and capped at today using the backend's configured constraints (D16), and each has a "clear to default"
-  affordance. Granularity's allowed-window legend appears on hovering its label; the secondary filters (activity
-  type, status, currency, amount range, type-specific fields) collapse behind an icon that floats over the chart's
-  top-right corner (reusing the transaction table's menu-popover pattern) and changes color when any are active. The
-  chart scrolls horizontally when a range/granularity produces more buckets than fit its width. `ng serve` proxies
-  `/api/**` to the backend via `frontend/proxy.conf.json`.
+  refresh-safe, and switching customers via the header search preserves whichever tab is active) — with a shared
+  `From`/`To` transaction-date filter also available directly on the Transactions tab's Date column (icon-triggered
+  popover, matching every other filterable column). The Analytics view renders a compact date-range + granularity +
+  aggregation-type toolbar above the chart (Chart.js via `ng2-charts`, see `DECISIONS.md` D15); an untouched `From`/
+  `To` picker reflects the actual range being queried (including any side the backend computed on the caller's
+  behalf), but once the operator explicitly sets or clears a side it stays exactly as they left it — including
+  blank — across further reloads (e.g. while trying different granularities) until they change it again or switch
+  customers, rather than being silently recomputed every time. Opening a blank side's calendar positions it at the
+  boundary that would maximize the window (the same value the backend would use as that side's default), bounded
+  bidirectionally by the other side and capped at today using the backend's configured constraints (D16); each
+  field also has a "clear to default" affordance. Granularity's allowed-window legend appears on hovering its
+  label; the secondary filters (activity type, status, currency, amount range, type-specific fields) collapse
+  behind an icon that floats over the chart's top-right corner (reusing the transaction table's menu-popover
+  pattern) and changes color when any are active. The chart scrolls horizontally when a range/granularity produces
+  more buckets than fit its width. Switching customers resets both the Analytics pickers/touched-state and the
+  Transactions date filter to that customer's own defaults. `ng serve` proxies `/api/**` to the backend via
+  `frontend/proxy.conf.json`.
 - `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is

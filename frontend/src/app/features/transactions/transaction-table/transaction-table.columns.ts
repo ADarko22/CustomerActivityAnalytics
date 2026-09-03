@@ -3,12 +3,12 @@ import { ActivityType } from '../../../core/models/transaction.model';
 export interface ColumnDef {
   key: string;
   label: string;
-  filterType: 'text' | 'select' | 'boolean' | 'amount' | 'none';
+  filterType: 'text' | 'select' | 'boolean' | 'amount' | 'date' | 'none';
   selectOptions?: string[];
 }
 
 export const COMMON_COLUMNS: ColumnDef[] = [
-  { key: 'createdAt', label: 'Date', filterType: 'none' },
+  { key: 'createdAt', label: 'Date', filterType: 'date' },
   { key: 'amount', label: 'Amount', filterType: 'amount' },
   { key: 'currency', label: 'Currency', filterType: 'text' },
   {

@@ -1,7 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Component, Input, OnChanges, SimpleChanges, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  SimpleChanges,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
@@ -12,7 +21,11 @@ import { MatTableModule } from '@angular/material/table';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import { faFilter, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Subject, debounceTime } from 'rxjs';
-import { ActivityType, Transaction, TransactionFilter } from '../../../core/models/transaction.model';
+import {
+  ActivityType,
+  Transaction,
+  TransactionFilter,
+} from '../../../core/models/transaction.model';
 import { TransactionService } from '../../../core/services/transaction.service';
 import { TransactionDetailComponent } from '../transaction-detail/transaction-detail.component';
 import { COMMON_COLUMNS, ColumnDef, TYPE_COLUMNS } from './transaction-table.columns';
@@ -32,6 +45,7 @@ const FILTER_DEBOUNCE_MS = 300;
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
+    MatDatepickerModule,
     MatMenuModule,
     MatButtonModule,
     FaIconComponent,
@@ -51,6 +65,8 @@ export class TransactionTableComponent implements OnChanges {
 
   readonly activityType = signal<ActivityType | 'ALL'>('ALL');
   readonly filters = signal<TransactionFilter>({});
+  readonly fromDateFilter = signal<Date | null>(null);
+  readonly toDateFilter = signal<Date | null>(null);
   readonly sort = signal<string | undefined>(DEFAULT_SORT);
   readonly pageIndex = signal(0);
   readonly pageSize = signal(DEFAULT_PAGE_SIZE);
@@ -67,14 +83,20 @@ export class TransactionTableComponent implements OnChanges {
   readonly displayedColumns = computed(() => this.columns().map((column) => column.key));
 
   constructor() {
-    this.filterChange$.pipe(debounceTime(FILTER_DEBOUNCE_MS), takeUntilDestroyed()).subscribe(() => {
-      this.load();
-    });
+    this.filterChange$
+      .pipe(debounceTime(FILTER_DEBOUNCE_MS), takeUntilDestroyed())
+      .subscribe(() => {
+        this.load();
+      });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['customerId']) {
       this.pageIndex.set(0);
+      this.filters.set({});
+      this.activityType.set('ALL');
+      this.fromDateFilter.set(null);
+      this.toDateFilter.set(null);
       this.load();
     }
   }
@@ -109,9 +131,30 @@ export class TransactionTableComponent implements OnChanges {
     this.filterChange$.next();
   }
 
+  onFromDateFilterChange(date: Date | null): void {
+    this.fromDateFilter.set(date);
+    this.onFilterChange('from', date?.toISOString());
+  }
+
+  onToDateFilterChange(date: Date | null): void {
+    this.toDateFilter.set(date);
+    this.onFilterChange('to', date?.toISOString());
+  }
+
+  clearDateFilter(): void {
+    this.fromDateFilter.set(null);
+    this.toDateFilter.set(null);
+    this.filters.update((current) => ({ ...current, from: undefined, to: undefined }));
+    this.pageIndex.set(0);
+    this.filterChange$.next();
+  }
+
   isFilterActive(column: ColumnDef): boolean {
     if (column.filterType === 'amount') {
       return this.filters().minAmount !== undefined || this.filters().maxAmount !== undefined;
+    }
+    if (column.filterType === 'date') {
+      return this.filters().from !== undefined || this.filters().to !== undefined;
     }
     const value = (this.filters() as Record<string, unknown>)[column.key];
     return value !== undefined && value !== null && value !== '';

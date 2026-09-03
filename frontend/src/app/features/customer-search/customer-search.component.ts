@@ -50,6 +50,7 @@ export class CustomerSearchComponent {
 
   onCustomerSelected(event: MatAutocompleteSelectedEvent): void {
     const customer = event.option.value as Customer;
-    this.router.navigate(['/customers', customer.customerId, 'transactions']);
+    const tab = this.router.url.endsWith('/analytics') ? 'analytics' : 'transactions';
+    this.router.navigate(['/customers', customer.customerId, tab]);
   }
 }
