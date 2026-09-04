@@ -1,9 +1,14 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { CardTransaction } from '../../../core/models/transaction.model';
 import { TransactionDetailComponent } from './transaction-detail.component';
 
 describe('TransactionDetailComponent', () => {
   let fixture: ComponentFixture<TransactionDetailComponent>;
+  let httpMock: HttpTestingController;
 
   const cardTransaction: CardTransaction = {
     transactionId: 'txn-1',
@@ -21,8 +26,22 @@ describe('TransactionDetailComponent', () => {
   };
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [TransactionDetailComponent] });
+    TestBed.configureTestingModule({
+      imports: [TransactionDetailComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideNoopAnimations(),
+        provideNativeDateAdapter(),
+      ],
+    });
     fixture = TestBed.createComponent(TransactionDetailComponent);
+    fixture.componentRef.setInput('customerId', 'customer-1');
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
   });
 
   it('shows an empty-state prompt when nothing is selected', () => {
@@ -31,11 +50,17 @@ describe('TransactionDetailComponent', () => {
     expect(text).toContain('Select a transaction');
   });
 
-  it('renders card-specific fields for a CARD transaction', () => {
+  it('renders card-specific fields and the AI risk assessment section for a CARD transaction', () => {
     fixture.componentInstance.transaction = cardTransaction;
     fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers/customer-1/ai-assessments')
+      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
+
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Amazon');
     expect(text).toContain('DEBIT');
+    expect(text).toContain('AI Risk Assessment');
+    expect(text).toContain('Run AI Risk Assessment');
   });
 });

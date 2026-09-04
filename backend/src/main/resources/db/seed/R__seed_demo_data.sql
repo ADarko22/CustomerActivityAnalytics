@@ -1,6 +1,7 @@
 -- Local-only demo data (loaded when spring.flyway.locations includes this folder, i.e. the "local" profile).
 -- Repeatable migration: reruns whenever its checksum changes, so it's safe to tweak during local development.
 
+DELETE FROM risk_rules;
 DELETE FROM card_activity;
 DELETE FROM payment_activity;
 DELETE FROM crypto_activity;
@@ -142,3 +143,49 @@ SELECT ('f0000000-0000-0000-0000-' || lpad(gs::text, 12, '0'))::uuid,
        'AUTH-HIST' || gs,
        CASE WHEN gs % 4 = 3 THEN 'Insufficient funds' ELSE NULL END
 FROM generate_series(0, 27) AS gs;
+
+-- Phase 4: risk rules used as RAG context for the AI risk assessment (docs/development/PHASE_4_PLAN.md).
+INSERT INTO risk_rules (rule_id, rule_name, applies_to, threshold_logic, weight)
+VALUES ('90000000-0000-0000-0000-000000000001',
+        'High-value transaction',
+        'ALL',
+        'Transaction amount exceeds 5,000 in its transaction currency, regardless of activity type.',
+        25.00),
+       ('90000000-0000-0000-0000-000000000002',
+        'Repeated failed or reversed activity',
+        'ALL',
+        'Transaction status is FAILED or REVERSED, which may indicate a declined attempt or a walked-back transfer.',
+        10.00),
+       ('90000000-0000-0000-0000-000000000003',
+        'Card-not-present at high-chargeback merchant category',
+        'CARD',
+        'Card-not-present (cardPresent = false) transaction at a merchant category code commonly associated with '
+        || 'high chargeback rates (e.g. electronics, travel, digital goods).',
+        20.00),
+       ('90000000-0000-0000-0000-000000000004',
+        'Declined authorization',
+        'CARD',
+        'The card transaction carries a non-null decline reason, indicating the issuer refused authorization.',
+        15.00),
+       ('90000000-0000-0000-0000-000000000005',
+        'Cross-border payment to a non-cooperative jurisdiction',
+        'PAYMENT',
+        'The receiving bank country differs from the sending account''s country and is not among the commonly '
+        || 'trusted corridors (e.g. EU/EEA, US, UK).',
+        30.00),
+       ('90000000-0000-0000-0000-000000000006',
+        'High-value wire or SWIFT transfer',
+        'PAYMENT',
+        'Payment method is WIRE or SWIFT and the amount exceeds 10,000 in its transaction currency.',
+        25.00),
+       ('90000000-0000-0000-0000-000000000007',
+        'Crypto transfer without a known exchange counterpart',
+        'CRYPTO',
+        'The crypto transaction has no associated exchange name, suggesting a direct wallet-to-wallet transfer '
+        || 'outside a regulated exchange.',
+        20.00),
+       ('90000000-0000-0000-0000-000000000008',
+        'High-value crypto transfer',
+        'CRYPTO',
+        'Crypto transaction amount exceeds the equivalent of 10,000 in its stated currency/ticker.',
+        30.00);

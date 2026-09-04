@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-wiremock-stub",
+  "object": "chat.completion",
+  "created": 1730000000,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"ruleMatches\":[{\"ruleId\":\"90000000-0000-0000-0000-000000000001\",\"relevance\":0.85},{\"ruleId\":\"90000000-0000-0000-0000-000000000003\",\"relevance\":0.6}],\"findings\":\"The transaction amount significantly exceeds the high-value threshold and the activity pattern matches a high-chargeback profile, indicating an elevated risk of fraud.\",\"recommendations\":\"Verify the customer's recent activity and consider a manual review before authorizing similar future transactions.\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 400,
+    "completion_tokens": 120,
+    "total_tokens": 520
+  }
+}

@@ -17,6 +17,9 @@ provisioned automatically by Gradle for the frontend.
 - **Verify:** `./gradlew check` — lint, tests, and coverage for both modules.
 - **Build:** `./gradlew build`.
 - Backend health: `http://localhost:8080/actuator/health`. Frontend: `http://localhost:4200`.
+- AI risk assessments run offline by default, against a WireMock-stubbed LLM (`local-environment/wiremock/`) — no
+  API key needed. To use a real provider instead, set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) as
+  environment variables and clear the `local` profile's `spring.ai.openai.base-url` override.
 
 ## Architecture
 
@@ -33,7 +36,17 @@ Gradle multi-module project:
   extension properties alongside a human-readable message. An omitted `from` or `to` is derived from the other side
   using the selected granularity's configured max span (never from an anchor unrelated to the provided side), capped
   so it never resolves into the future; omitting both defaults to month-to-date relative to the customer's own
-  latest activity.
+  latest activity. Phase 4 adds an AI risk-assessment feature: `GET /customers/{id}/ai-assessments/stream` opens an
+  SSE stream of typed progress tokens (`PROMPT_BUILDING`/`RULE_RETRIEVAL`/`HISTORY_RETRIEVAL`/`MODEL_CALL`/
+  `COMPLETE`/`FAILED`) for a single transaction, then persists the outcome across two tables —
+  `risk_final_assessments` (aggregate level/score/findings) and `risk_assessments` (per-rule line items with a
+  `score_contribution = weight × relevance`, see `DECISIONS.md` D6); `GET /customers/{id}/ai-assessments` returns
+  the paginated, per-column-filterable history. Risk rules and the transaction's own prior assessments are
+  retrieved via structured DB filtering as RAG context (no vector store — D17) and sent to a Spring AI `ChatClient`
+  behind a swappable `RiskAssessmentAiClient` interface (D18); the prompt never receives PII, account numbers, or
+  wallet/tx identifiers — only categorical transaction signals (`risk/PromptContextMapper`). The model call and the
+  SSE connection have independently configured, mutually consistent timeouts (`app.risk.*`), and persistence is
+  decoupled from the SSE connection — an assessment completes and is saved even if the operator disconnects.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
@@ -55,8 +68,13 @@ Gradle multi-module project:
   pattern) and changes color when any are active. The chart scrolls horizontally when a range/granularity produces
   more buckets than fit its width. Switching customers resets both the Analytics pickers/touched-state and the
   Transactions date filter to that customer's own defaults. `ng serve` proxies `/api/**` to the backend via
-  `frontend/proxy.conf.json`.
-- `local-environment` — Docker Compose (PostgreSQL now; Keycloak and WireMock folders reserved for later phases).
+  `frontend/proxy.conf.json`. Phase 4 adds an "AI Risk Assessment" section to each transaction's expanded detail
+  row: a trigger button showing live SSE stage progress that replaces itself with the final risk-level/findings/
+  recommendations card (or a retry-able error card) on completion, plus a paginated, per-column-filterable history
+  table of past assessments for that transaction.
+- `local-environment` — Docker Compose: PostgreSQL, and (since Phase 4) WireMock serving canned AI responses for
+  the offline demo (see `local-environment/wiremock/README.md` for the record-mode toggle); Keycloak folder still
+  reserved for Phase 5.
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
 configured.
@@ -69,12 +87,15 @@ Durable architectural decisions — including every choice that goes beyond the 
 - Local/demo use only: default database credentials in `local-environment/docker-compose.yml` and
   `backend/src/main/resources/application.yml` are placeholders, overridable via environment variables — not
   intended for production deployment.
-- The AI provider integration is scaffolded (dependency + placeholder config) but inert until Phase 4 wires up real
-  usage.
+- AI risk assessments run against a WireMock-stubbed LLM by default (offline, deterministic demo, no API key
+  needed). A real provider requires a real `OPENAI_API_KEY` and clearing the `local` profile's
+  `spring.ai.openai.base-url` override — see `local-environment/wiremock/README.md` for the record-mode toggle
+  that captures new stubs from real provider responses.
 - No authentication is enforced yet: every `/api/v1/**` endpoint is open (a temporary `permitAll` `SecurityConfig`)
   until Phase 5 wires up real OAuth2/OIDC login and role-based access — see [DECISIONS.md](docs/DECISIONS.md) D13.
 - Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed
-  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically).
+  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically). Risk rules are
+  likewise read-only and seeded — rule CRUD, alongside authentication/authorization, is deferred to Phase 5.
 - Analytics aggregation (Phase 3) is computed in memory over an unpaged, already-filtered row fetch — no DB-side
   `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
   [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.

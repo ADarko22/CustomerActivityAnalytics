@@ -1,0 +1,160 @@
+<table
+  mat-table
+  [dataSource]="assessments()"
+  matSort
+  multiTemplateDataRows
+  (matSortChange)="onSortChange($event)"
+  class="history-table"
+>
+  @for (column of columns; track column.key) {
+    <ng-container [matColumnDef]="column.key">
+      <th mat-header-cell *matHeaderCellDef>
+        <span class="header-label" mat-sort-header>{{ column.label }}</span>
+        @if (column.filterType !== 'none') {
+          <button
+            type="button"
+            mat-icon-button
+            class="filter-trigger"
+            [class.filter-active]="isFilterActive(column)"
+            [matMenuTriggerFor]="filterMenu"
+            (click)="$event.stopPropagation()"
+            [attr.aria-label]="'Filter ' + column.label"
+          >
+            <fa-icon [icon]="faFilter" size="xs" />
+          </button>
+          <mat-menu #filterMenu="matMenu">
+            <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+            <div class="filter-menu-content" (click)="$event.stopPropagation()">
+              @switch (column.filterType) {
+                @case ('select') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ column.label }}</mat-label>
+                    <mat-select (selectionChange)="onFilterChange(column.key, $event.value)">
+                      <mat-option [value]="undefined">Any</mat-option>
+                      @for (option of column.selectOptions; track option) {
+                        <mat-option [value]="option">{{ option }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                @case ('date') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>From</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="fromDatePicker"
+                      [value]="fromDateFilter()"
+                      (dateChange)="onFromDateFilterChange($event.value)"
+                    />
+                    <mat-datepicker-toggle matSuffix [for]="fromDatePicker" />
+                    <mat-datepicker #fromDatePicker />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>To</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="toDatePicker"
+                      [value]="toDateFilter()"
+                      (dateChange)="onToDateFilterChange($event.value)"
+                    />
+                    <mat-datepicker-toggle matSuffix [for]="toDatePicker" />
+                    <mat-datepicker #toDatePicker />
+                  </mat-form-field>
+                  <button type="button" mat-button (click)="clearDateFilter()">
+                    <fa-icon [icon]="faXmark" size="xs" /> Clear
+                  </button>
+                }
+                @case ('score') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Min score</mat-label>
+                    <input
+                      #minScoreInput
+                      matInput
+                      type="number"
+                      (input)="onFilterChange('minScore', $any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Max score</mat-label>
+                    <input
+                      #maxScoreInput
+                      matInput
+                      type="number"
+                      (input)="onFilterChange('maxScore', $any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <button
+                    type="button"
+                    mat-button
+                    (click)="clearScoreFilter(minScoreInput, maxScoreInput)"
+                  >
+                    <fa-icon [icon]="faXmark" size="xs" /> Clear
+                  </button>
+                }
+              }
+            </div>
+          </mat-menu>
+        }
+      </th>
+      <td mat-cell *matCellDef="let row">
+        @switch (column.key) {
+          @case ('riskLevel') {
+            <mat-chip [class]="'risk-chip-' + row.riskLevel.toLowerCase()">{{
+              row.riskLevel
+            }}</mat-chip>
+          }
+          @case ('findings') {
+            <span class="truncated" [matTooltip]="row.findings">{{ row.findings }}</span>
+          }
+          @case ('recommendations') {
+            <span class="truncated" [matTooltip]="row.recommendations">{{
+              row.recommendations
+            }}</span>
+          }
+          @default {
+            {{ row[column.key] }}
+          }
+        }
+      </td>
+    </ng-container>
+  }
+
+  <ng-container matColumnDef="expandedDetail">
+    <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+      <div class="rule-contributions">
+        <strong>Rules triggered</strong>
+        @if (row.ruleContributions.length === 0) {
+          <p>No rules fired for this assessment.</p>
+        } @else {
+          <ul>
+            @for (contribution of row.ruleContributions; track contribution.ruleId) {
+              <li>{{ contribution.ruleName }}: +{{ contribution.scoreContribution }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: displayedColumns"
+    class="assessment-row"
+    (click)="toggleExpand(row)"
+  ></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: ['expandedDetail']"
+    class="detail-row"
+    [class.detail-row-open]="row.assessmentId === expandedAssessmentId()"
+  ></tr>
+</table>
+
+<mat-paginator
+  [length]="totalElements()"
+  [pageSize]="pageSize()"
+  [pageIndex]="pageIndex()"
+  [pageSizeOptions]="[5, 10, 20]"
+  (page)="onPageChange($event)"
+/>

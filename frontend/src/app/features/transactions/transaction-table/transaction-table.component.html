@@ -149,7 +149,7 @@
 
   <ng-container matColumnDef="expandedDetail">
     <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns().length">
-      <app-transaction-detail [transaction]="row" />
+      <app-transaction-detail [customerId]="customerId" [transaction]="row" />
     </td>
   </ng-container>
 

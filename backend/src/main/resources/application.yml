@@ -3,8 +3,13 @@ spring:
     name: customer-activity-analytics
   ai:
     openai:
-      # Placeholder so the context loads without a real key before Phase 4 wires up AI usage.
+      # Placeholder so the context loads without a real key before a real provider is configured.
       api-key: ${OPENAI_API_KEY:placeholder-api-key}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+      # base-url intentionally unset here (Spring AI defaults to the real OpenAI API) — the
+      # local profile (application-local.yml) points it at the WireMock stub instead.
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:customer_activity_analytics}
     username: ${DB_USERNAME:postgres}
@@ -32,6 +37,17 @@ app:
         WEEK: { min-amount: 1, min-unit: WEEKS, max-amount: 1, max-unit: YEARS }
         MONTH: { min-amount: 1, min-unit: MONTHS, max-amount: 5, max-unit: YEARS }
         YEAR: { min-amount: 1, min-unit: YEARS, max-amount: 20, max-unit: YEARS }
+  ai:
+    provider: openai
+    record-mode: ${AI_RECORD_MODE:false}
+  risk:
+    max-triggered-rules: 5
+    assessment-timeout: 45s
+    sse-timeout: 50s
+    level-thresholds:
+      low-max: 30
+      medium-max: 70
+    history-context-size: 5
 
 server:
   port: ${SERVER_PORT:8080}

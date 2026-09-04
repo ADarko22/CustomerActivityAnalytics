@@ -164,3 +164,31 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   clamping) that `AnalyticsPanelComponent` uses to disable out-of-range granularity options, bound the `to`
   datepicker's `[min]`/`[max]`, render a tooltip summarizing all configured windows, and render any surviving `400`
   as an inline structured message instead of raw backend text.
+
+## D17 — RAG over risk rules/history is structured DB filtering, not vector search · Accepted
+
+- **Decision:** The Phase 4 AI risk assessment implements "RAG" (`PROJECT_SPECIFICATION.md` Feature 9,
+  `PHASE_4.md` Requirements) as structured, filtered database reads — `risk_rules` filtered by
+  `applies_to IN (activityType, 'ALL')`, and the transaction's own prior `risk_final_assessments` — injected
+  verbatim into the prompt, rather than an embedding model + vector store.
+- **Context:** `risk_rules` is a small, structured, operator-curated table (dozens, not thousands, of rows), not
+  an unstructured document corpus; `PHASE_4.md`'s own Scope narrows this phase's RAG sources to "risk rules +
+  prior assessments" (Feature 9's broader "policies and regulations" sources are deferred, not overridden). A
+  vector store would be a genuinely unnecessary abstraction (`CLAUDE.md` Coding Standard #3) for this data shape.
+- **Consequence:** `risk/RiskRuleRetrievalService` and `risk/AssessmentHistoryRetrievalService` perform plain
+  repository queries; no embedding model, vector index, or similarity-search dependency was added. Introduced in
+  Phase 4 (`docs/development/PHASE_4_PLAN.md` Clarification #1).
+
+## D18 — Single OpenAI-shaped AI client behind a swappable interface · Accepted
+
+- **Decision:** The "configurable AI Provider" of `PROJECT_SPECIFICATION.md` Feature 5 is implemented as one
+  concrete `risk.ai.OpenAiRiskAssessmentAiClient` (Spring AI `ChatClient` over `spring-ai-starter-model-openai`)
+  behind a `risk.ai.RiskAssessmentAiClient` interface, with the model name and a provider label externalized as
+  configuration (`spring.ai.openai.chat.options.model`, `app.ai.provider`) — not literal multi-provider wiring
+  (e.g. a second real provider SDK).
+- **Context:** WireMock stubs the OpenAI-shaped HTTP contract regardless of which "provider" label is configured
+  (D4), so a second real provider SDK would add real dependency/maintenance surface with no acceptance criterion
+  exercising it. The interface seam means a second provider is a future implementation, not a rewrite.
+- **Consequence:** `risk/ai/RiskAssessmentAiClient` is the only extension point; swapping providers later means
+  adding an implementation and a config switch, not touching `AiRiskAssessmentOrchestrator` or its callers.
+  Introduced in Phase 4 (`docs/development/PHASE_4_PLAN.md` Clarification #4).

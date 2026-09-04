@@ -63,6 +63,12 @@ describe('TransactionTableComponent', () => {
     fixture.detectChanges();
   }
 
+  function flushAiAssessmentHistory(): void {
+    httpMock
+      .expectOne((r) => r.url === `/api/v1/customers/${customerId}/ai-assessments`)
+      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
+  }
+
   function openFilterMenu(ariaLabel: string): void {
     const button = fixture.debugElement
       .queryAll(By.directive(MatMenuTrigger))
@@ -196,6 +202,11 @@ describe('TransactionTableComponent', () => {
 
   it('expands a row to show its detail, and collapses it when clicked again', () => {
     flushInitial({ content: [card1], totalElements: 1, totalPages: 1, number: 0, size: 20 });
+    // Every detail row (incl. its nested AI risk-assessment history table) mounts eagerly —
+    // `multiTemplateDataRows` renders all row templates per data item, only toggling visibility
+    // via CSS — so the history table's request fires immediately, not only once expanded.
+    flushAiAssessmentHistory();
+    fixture.detectChanges();
 
     expect(component.expandedTransactionId()).toBeNull();
     const row = fixture.debugElement.queryAll(By.css('tr.transaction-row'))[0];
@@ -217,6 +228,13 @@ describe('TransactionTableComponent', () => {
 
   it('expanding a second row collapses the first', () => {
     flushInitial({ content: [card1, card2], totalElements: 2, totalPages: 1, number: 0, size: 20 });
+    // Both rows' detail templates mount at once, so both history-table requests are pending
+    // simultaneously — match() (not expectOne(), which requires exactly one pending match) then
+    // flush each.
+    httpMock
+      .match((r) => r.url === `/api/v1/customers/${customerId}/ai-assessments`)
+      .forEach((req) => req.flush(emptyPage));
+    fixture.detectChanges();
 
     const rows = fixture.debugElement.queryAll(By.css('tr.transaction-row'));
     const detailRows = fixture.debugElement.queryAll(By.css('tr.detail-row'));

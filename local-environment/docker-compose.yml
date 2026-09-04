@@ -17,5 +17,22 @@ services:
       timeout: 5s
       retries: 10
 
+  wiremock:
+    # Not the "-alpine" variant: it's amd64-only on Docker Hub and fails to pull on arm64 hosts
+    # (e.g. Apple Silicon) with "no matching manifest for linux/arm64/v8".
+    image: wiremock/wiremock:3.9.1
+    container_name: caa-wiremock
+    ports:
+      - "${WIREMOCK_PORT:-8089}:8080"
+    volumes:
+      - ./wiremock/mappings:/home/wiremock/mappings
+      - ./wiremock/__files:/home/wiremock/__files
+    # Default: serve the canned stubs in ./wiremock/mappings, for the offline demo (docs/DECISIONS.md D4).
+    # Dev record mode (WIREMOCK_RECORD_MODE=true + a real OPENAI_API_KEY on the backend): proxies to the
+    # real OpenAI API and records the exchange as a new stub — see local-environment/wiremock/README.md.
+    command: >
+      --global-response-templating
+      ${WIREMOCK_RECORD_MODE:+--record-mappings --proxy-all=https://api.openai.com}
+
 volumes:
   caa-postgres-data:

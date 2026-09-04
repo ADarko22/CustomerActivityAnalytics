@@ -1,3 +1,9 @@
 spring:
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+  ai:
+    openai:
+      # Local/offline demo (docs/DECISIONS.md D4): talk to the WireMock stub, not the real API.
+      # The openai-java SDK's default base-url is "https://api.openai.com/v1" (path included), so
+      # a full override must carry the /v1 suffix too for the resulting request path to match.
+      base-url: http://localhost:${WIREMOCK_PORT:8089}/v1

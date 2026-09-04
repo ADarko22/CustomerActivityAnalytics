@@ -1,6 +1,6 @@
 # Phase 4 — Risk Assessment Features
 
-**Status:** NOT_STARTED
+**Status:** COMPLETE
 **Depends on:** Phase 2 (transactions), Phase 3 (customer analytics context); Phase 1 for the WireMock/AI local stack.
 
 ## Objective
