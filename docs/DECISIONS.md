@@ -254,3 +254,43 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   when `authService.isAdmin()` is true; a non-admin operator who reaches `/api/v1/risk-rules` directly (bypassing
   the UI) still gets a `200` read response, by design. Introduced in Phase 5
   (`docs/development/PHASE_5_PLAN.md` Clarification #7).
+
+## D22 — Flyway SQL migrations/seed excluded from SonarCloud analysis · Accepted
+
+- **Decision:** `backend/src/main/resources/db/**` (Flyway `V*`/`R__` migration and seed files) is excluded from
+  SonarCloud analysis via `sonar.exclusions`, rather than editing the SQL to satisfy the findings or triaging them
+  one by one in the SonarCloud UI.
+- **Context:** D5 already put SonarCloud in CI as a quality gate. Once analysis actually ran, 30 of the project's
+  39 open MAINTAINABILITY issues turned out to be `plsql:VarcharUsageCheck`/`plsql:S1192` findings against these
+  Postgres migration/seed files — SonarCloud has no dedicated PostgreSQL analyzer, so `.sql` files default to its
+  Oracle-oriented PL/SQL rules, which flag idiomatic Postgres `VARCHAR` as "should be `VARCHAR2`" (a type that
+  doesn't exist in Postgres) and treat routine repeated literals in seed `INSERT`s as duplication smells.
+- **Consequence:** These files are simply out of scope for static analysis going forward — not resolved
+  issue-by-issue, since the underlying rule set doesn't fit the dialect and would keep re-flagging every future
+  migration the same way. No SQL content was changed to accommodate this. Introduced in Phase 6
+  (`docs/development/PHASE_6.md`).
+
+## D23 — `risk_level` is computed on read, not persisted · Supersedes D6 (partially)
+
+- **Decision:** `risk_final_assessments.risk_level` is dropped as a stored column. Every read path (the SSE
+  completion payload, the assessment-history list DTO, the RAG history-context block injected into future
+  prompts, and the history endpoint's `riskLevel` filter) computes the categorical level on demand from the
+  persisted `risk_score`, using the already-configurable `RiskAssessmentProperties.levelThresholds`
+  (`app.risk.level-thresholds`, introduced in Phase 4/4 EXT).
+- **Context:** D6 originally reconciled `risk_level` into `PROJECT_SPECIFICATION.md`'s data model as a stored,
+  categorical column alongside the numeric `risk_score`. At the time, the score→level mapping was effectively
+  fixed. Once the mapping's thresholds became runtime-configurable, a persisted `risk_level` silently goes
+  stale the moment an operator changes `app.risk.level-thresholds` — historical rows would keep showing the
+  level computed under whatever thresholds were active when each row was inserted, diverging from the level
+  the same `risk_score` would earn under the current configuration. `PHASE_5_EXT_2.md` asks for `risk_level`
+  to be dropped and "compute[d] just for UI displaying," which changes the data model
+  `PROJECT_SPECIFICATION.md` records — per `CLAUDE.md`'s precedence rules this requires this explicit,
+  recorded decision rather than a silent implementation change.
+- **Consequence:** `RiskFinalAssessment` and the Flyway schema lose the `risk_level` column; every consumer
+  (SSE orchestrator, `AiRiskAssessmentHistoryService`, the RAG history-context prompt renderer,
+  `RiskFinalAssessmentSpecifications`'s `riskLevel` filter) calls `RiskAssessmentProperties.levelFor(...)` (or
+  an equivalent `risk_score` range translation for the filter) instead of reading a column. Changing
+  `app.risk.level-thresholds` now retroactively changes the displayed level for every existing assessment on
+  next read — the intended behavior, not a defect. `docs/specs/PROJECT_SPECIFICATION.md`'s
+  `risk_final_assessments` table is updated to mark `risk_level` as derived, not stored. Introduced in Phase 5
+  EXT_2 (`docs/development/PHASE_5_EXT_2.md`).

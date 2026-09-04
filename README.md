@@ -1,5 +1,11 @@
 # Customer Activity Analytics
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/quality_gate?project=ADarko22_CustomerActivityAnalytics)](https://sonarcloud.io/summary/new_code?id=ADarko22_CustomerActivityAnalytics)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=ADarko22_CustomerActivityAnalytics&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=ADarko22_CustomerActivityAnalytics)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=ADarko22_CustomerActivityAnalytics&metric=coverage)](https://sonarcloud.io/summary/new_code?id=ADarko22_CustomerActivityAnalytics)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=ADarko22_CustomerActivityAnalytics&metric=bugs)](https://sonarcloud.io/summary/new_code?id=ADarko22_CustomerActivityAnalytics)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=ADarko22_CustomerActivityAnalytics&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=ADarko22_CustomerActivityAnalytics)
+
 Web application enabling Financial Operators to overview customer activity and perform AI-aided risk analysis.
 
 The application consists of a Java/Spring Boot [backend](backend/README.md) and an
@@ -121,8 +127,10 @@ Gradle multi-module project:
   declaratively from `local-environment/keycloak/realm-export.json` (`--import-realm`) — see
   `local-environment/keycloak/README.md` for the demo logins and how to re-export the realm.
 
-CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
-configured.
+CI (GitHub Actions) runs `./gradlew check` on every push/PR, plus a SonarCloud analysis pass (backend JaCoCo and
+frontend LCOV coverage both feed into it) whenever the `SONAR_TOKEN` repository secret is configured — see the
+badges above and `docs/DECISIONS.md` D5/D22 for the quality-gate setup and the one deliberate analysis exclusion
+(Flyway SQL, which SonarCloud has no proper PostgreSQL analyzer for).
 
 Durable architectural decisions — including every choice that goes beyond the assignment PDF — are tracked in
 [DECISIONS.md](docs/DECISIONS.md).

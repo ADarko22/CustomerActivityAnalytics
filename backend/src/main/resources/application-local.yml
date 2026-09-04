@@ -8,6 +8,6 @@ spring:
       # a full override must carry the /v1 suffix too for the resulting request path to match.
       base-url: http://localhost:${WIREMOCK_PORT:8089}/v1
     anthropic:
-      # Local/offline demo, mirroring the OpenAI override above: talk to the WireMock stub, not
-      # the real Anthropic API.
+      # Local/offline demo, mirroring the OpenAI override above: talk to the WireMock stub, not the real API.
+      # The Claude API is "https://api.anthropic.com"
       base-url: http://localhost:${WIREMOCK_PORT:8089}

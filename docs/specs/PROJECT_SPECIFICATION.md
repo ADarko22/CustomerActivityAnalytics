@@ -140,7 +140,7 @@ per transaction).
 | **assessment_id**   | UUID (PK)                | Unique final-assessment record               |
 | **transaction_id**  | UUID (FK → transactions) | Transaction that was assessed                |
 | **triggered_at**    | TIMESTAMP                | When the assessment completed                |
-| **risk_level**      | VARCHAR                  | Categorical level, e.g. LOW / MEDIUM / HIGH  |
+| **risk_level**      | *(derived, not stored)*  | Categorical level, e.g. LOW / MEDIUM / HIGH — computed at read time from `risk_score` against the current configurable thresholds; not a persisted column (see `docs/DECISIONS.md` D23) |
 | **risk_score**      | DECIMAL(10,2)            | Numeric aggregate score behind the level     |
 | **findings**        | TEXT                     | Summary of the assessment                    |
 | **recommendations** | TEXT                     | Summary with the recommendations             |

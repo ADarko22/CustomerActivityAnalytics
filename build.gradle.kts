@@ -20,3 +20,17 @@ tasks.build {
 tasks.register("dev") {
     dependsOn(":frontend:dev")
 }
+
+sonar {
+    properties {
+        property("sonar.projectKey", "ADarko22_CustomerActivityAnalytics")
+        property("sonar.organization", "adarko22-dev")
+        // Flyway SQL has no dedicated PostgreSQL analyzer here — see docs/DECISIONS.md D22.
+        property("sonar.exclusions", "backend/src/main/resources/db/**")
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            "backend/build/reports/jacoco/test/jacocoTestReport.xml",
+        )
+        property("sonar.javascript.lcov.reportPaths", "frontend/coverage/frontend/lcov.info")
+    }
+}
