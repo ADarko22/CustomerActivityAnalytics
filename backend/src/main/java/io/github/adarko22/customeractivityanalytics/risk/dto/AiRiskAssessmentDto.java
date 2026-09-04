@@ -1,6 +1,6 @@
 package io.github.adarko22.customeractivityanalytics.risk.dto;
 
-import io.github.adarko22.customeractivityanalytics.risk.RiskLevel;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

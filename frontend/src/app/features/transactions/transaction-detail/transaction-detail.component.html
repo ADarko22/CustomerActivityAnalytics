@@ -35,21 +35,17 @@
         }
       }
     </mat-card-content>
+    <mat-card-actions>
+      <app-risk-assessment-trigger [customerId]="customerId" [transactionId]="txn.transactionId" />
+      <button
+        type="button"
+        mat-button
+        [routerLink]="['/customers', customerId, 'risk-assessments']"
+      >
+        <fa-icon [icon]="faClockRotateLeft" /> View Risk Assessments History
+      </button>
+    </mat-card-actions>
   </mat-card>
-
-  <section class="ai-risk-assessment-section">
-    <h3>AI Risk Assessment</h3>
-    <app-risk-assessment-trigger
-      [customerId]="customerId"
-      [transactionId]="txn.transactionId"
-      (assessmentAdded)="historyTable.reload()"
-    />
-    <app-risk-assessment-history-table
-      #historyTable
-      [customerId]="customerId"
-      [transactionId]="txn.transactionId"
-    />
-  </section>
 } @else {
   <p class="empty-state">Select a transaction to see its details.</p>
 }

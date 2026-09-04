@@ -18,8 +18,9 @@ provisioned automatically by Gradle for the frontend.
 - **Build:** `./gradlew build`.
 - Backend health: `http://localhost:8080/actuator/health`. Frontend: `http://localhost:4200`.
 - AI risk assessments run offline by default, against a WireMock-stubbed LLM (`local-environment/wiremock/`) — no
-  API key needed. To use a real provider instead, set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) as
-  environment variables and clear the `local` profile's `spring.ai.openai.base-url` override.
+  API key needed. `app.ai.provider` (`AI_PROVIDER` env var) selects `openai` (default) or `anthropic`; to use a real
+  provider instead, set the matching `OPENAI_API_KEY`/`OPENAI_MODEL` or `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` and
+  clear that provider's `local`-profile `base-url` override (see `local-environment/wiremock/README.md`).
 
 ## Architecture
 
@@ -46,7 +47,10 @@ Gradle multi-module project:
   behind a swappable `RiskAssessmentAiClient` interface (D18); the prompt never receives PII, account numbers, or
   wallet/tx identifiers — only categorical transaction signals (`risk/PromptContextMapper`). The model call and the
   SSE connection have independently configured, mutually consistent timeouts (`app.risk.*`), and persistence is
-  decoupled from the SSE connection — an assessment completes and is saved even if the operator disconnects.
+  decoupled from the SSE connection — an assessment completes and is saved even if the operator disconnects. Phase 4
+  EXT makes the AI provider genuinely selectable (`app.ai.provider` = `openai`/`anthropic`, each with its own
+  `RiskAssessmentAiClient` bean and Spring AI config block, D19) and sub-packages the `risk` backend package into
+  `persistence`/`engine`/`api`/`ai`/`dto`.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
@@ -68,10 +72,12 @@ Gradle multi-module project:
   pattern) and changes color when any are active. The chart scrolls horizontally when a range/granularity produces
   more buckets than fit its width. Switching customers resets both the Analytics pickers/touched-state and the
   Transactions date filter to that customer's own defaults. `ng serve` proxies `/api/**` to the backend via
-  `frontend/proxy.conf.json`. Phase 4 adds an "AI Risk Assessment" section to each transaction's expanded detail
-  row: a trigger button showing live SSE stage progress that replaces itself with the final risk-level/findings/
-  recommendations card (or a retry-able error card) on completion, plus a paginated, per-column-filterable history
-  table of past assessments for that transaction.
+  `frontend/proxy.conf.json`. Phase 4 adds AI risk assessment actions directly to each transaction's expanded detail
+  card: "Run AI Risk Assessment" shows live SSE stage progress that replaces itself with the final risk-level/
+  findings/recommendations card (or a retry-able error card) on completion. Phase 4 EXT adds a third
+  `mat-tab-nav-bar` tab, "Risk Assessments" (`.../risk-assessments`), and a "View Risk Assessments History" button
+  next to the trigger — both open a dedicated, paginated, per-column-filterable, flat (non-expandable) table of
+  every AI risk assessment for the current customer across all of their transactions.
 - `local-environment` — Docker Compose: PostgreSQL, and (since Phase 4) WireMock serving canned AI responses for
   the offline demo (see `local-environment/wiremock/README.md` for the record-mode toggle); Keycloak folder still
   reserved for Phase 5.
@@ -88,9 +94,10 @@ Durable architectural decisions — including every choice that goes beyond the 
   `backend/src/main/resources/application.yml` are placeholders, overridable via environment variables — not
   intended for production deployment.
 - AI risk assessments run against a WireMock-stubbed LLM by default (offline, deterministic demo, no API key
-  needed). A real provider requires a real `OPENAI_API_KEY` and clearing the `local` profile's
-  `spring.ai.openai.base-url` override — see `local-environment/wiremock/README.md` for the record-mode toggle
-  that captures new stubs from real provider responses.
+  needed). A real provider requires a real API key for the selected `app.ai.provider` (`OPENAI_API_KEY` or
+  `ANTHROPIC_API_KEY`) and clearing that provider's `local` profile `base-url` override — see
+  `local-environment/wiremock/README.md` for the record-mode toggle that captures new stubs from real provider
+  responses, for either provider.
 - No authentication is enforced yet: every `/api/v1/**` endpoint is open (a temporary `permitAll` `SecurityConfig`)
   until Phase 5 wires up real OAuth2/OIDC login and role-based access — see [DECISIONS.md](docs/DECISIONS.md) D13.
 - Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed

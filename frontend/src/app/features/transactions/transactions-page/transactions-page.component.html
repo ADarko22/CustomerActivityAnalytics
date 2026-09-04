@@ -18,6 +18,15 @@
     >
       Analytics
     </a>
+    <a
+      mat-tab-link
+      routerLink="risk-assessments"
+      routerLinkActive
+      #rlaRiskAssessments="routerLinkActive"
+      [active]="rlaRiskAssessments.isActive"
+    >
+      Risk Assessments
+    </a>
   </nav>
   <mat-tab-nav-panel #tabPanel>
     <router-outlet />

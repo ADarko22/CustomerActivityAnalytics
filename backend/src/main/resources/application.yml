@@ -10,6 +10,13 @@ spring:
           model: ${OPENAI_MODEL:gpt-4o-mini}
       # base-url intentionally unset here (Spring AI defaults to the real OpenAI API) — the
       # local profile (application-local.yml) points it at the WireMock stub instead.
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:placeholder-api-key}
+      chat:
+        options:
+          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
+      # base-url intentionally unset (Spring AI defaults to the real Anthropic API) — the local
+      # profile points it at WireMock's Anthropic-shaped stub instead, mirroring OpenAI's setup.
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:customer_activity_analytics}
     username: ${DB_USERNAME:postgres}
@@ -38,7 +45,7 @@ app:
         MONTH: { min-amount: 1, min-unit: MONTHS, max-amount: 5, max-unit: YEARS }
         YEAR: { min-amount: 1, min-unit: YEARS, max-amount: 20, max-unit: YEARS }
   ai:
-    provider: openai
+    provider: ${AI_PROVIDER:openai}
     record-mode: ${AI_RECORD_MODE:false}
   risk:
     max-triggered-rules: 5

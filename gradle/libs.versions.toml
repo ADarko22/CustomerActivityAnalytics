@@ -28,6 +28,7 @@ spring-boot-starter-security-oauth2-resource-server = { module = "org.springfram
 # AI
 spring-ai-bom = { module = "org.springframework.ai:spring-ai-bom", version.ref = "springAi" }
 spring-ai-openai = { module = "org.springframework.ai:spring-ai-starter-model-openai" }
+spring-ai-anthropic = { module = "org.springframework.ai:spring-ai-starter-model-anthropic" }
 
 # Observability
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }

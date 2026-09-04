@@ -2,7 +2,6 @@
   mat-table
   [dataSource]="assessments()"
   matSort
-  multiTemplateDataRows
   (matSortChange)="onSortChange($event)"
   class="history-table"
 >
@@ -119,36 +118,8 @@
     </ng-container>
   }
 
-  <ng-container matColumnDef="expandedDetail">
-    <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
-      <div class="rule-contributions">
-        <strong>Rules triggered</strong>
-        @if (row.ruleContributions.length === 0) {
-          <p>No rules fired for this assessment.</p>
-        } @else {
-          <ul>
-            @for (contribution of row.ruleContributions; track contribution.ruleId) {
-              <li>{{ contribution.ruleName }}: +{{ contribution.scoreContribution }}</li>
-            }
-          </ul>
-        }
-      </div>
-    </td>
-  </ng-container>
-
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr
-    mat-row
-    *matRowDef="let row; columns: displayedColumns"
-    class="assessment-row"
-    (click)="toggleExpand(row)"
-  ></tr>
-  <tr
-    mat-row
-    *matRowDef="let row; columns: ['expandedDetail']"
-    class="detail-row"
-    [class.detail-row-open]="row.assessmentId === expandedAssessmentId()"
-  ></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns" class="assessment-row"></tr>
 </table>
 
 <mat-paginator

@@ -28,11 +28,12 @@ services:
       - ./wiremock/mappings:/home/wiremock/mappings
       - ./wiremock/__files:/home/wiremock/__files
     # Default: serve the canned stubs in ./wiremock/mappings, for the offline demo (docs/DECISIONS.md D4).
-    # Dev record mode (WIREMOCK_RECORD_MODE=true + a real OPENAI_API_KEY on the backend): proxies to the
-    # real OpenAI API and records the exchange as a new stub — see local-environment/wiremock/README.md.
+    # Dev record mode (WIREMOCK_RECORD_MODE=true + a real API key on the backend for whichever provider
+    # WIREMOCK_PROXY_TARGET points at): proxies to the real provider API and records the exchange as a new
+    # stub — see local-environment/wiremock/README.md for the OpenAI and Anthropic record-mode steps.
     command: >
       --global-response-templating
-      ${WIREMOCK_RECORD_MODE:+--record-mappings --proxy-all=https://api.openai.com}
+      ${WIREMOCK_RECORD_MODE:+--record-mappings --proxy-all=${WIREMOCK_PROXY_TARGET:-https://api.openai.com}}
 
 volumes:
   caa-postgres-data:

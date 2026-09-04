@@ -35,6 +35,7 @@ dependencies {
 
     // AI
     implementation(libs.spring.ai.openai)
+    implementation(libs.spring.ai.anthropic)
 
     // Management & Observability
     implementation(libs.spring.boot.starter.actuator)

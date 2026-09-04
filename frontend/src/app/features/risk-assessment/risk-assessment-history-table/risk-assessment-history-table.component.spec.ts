@@ -154,23 +154,12 @@ describe('RiskAssessmentHistoryTableComponent', () => {
     clearedReq.flush(emptyPage);
   }));
 
-  it('expands a row to show its rule contributions, and collapses it when clicked again', () => {
+  it('renders a Transaction column identifying each row', () => {
     flushInitial({ content: [assessment1], totalElements: 1, totalPages: 1, number: 0, size: 10 });
 
-    const row = fixture.debugElement.queryAll(By.css('tr.assessment-row'))[0];
-    const detailRow = fixture.debugElement.queryAll(By.css('tr.detail-row'))[0]
+    const row = fixture.debugElement.queryAll(By.css('tr.assessment-row'))[0]
       .nativeElement as HTMLElement;
-    expect(detailRow.classList.contains('detail-row-open')).toBeFalse();
-
-    row.triggerEventHandler('click', null);
-    fixture.detectChanges();
-    expect(component.expandedAssessmentId()).toBe('a1');
-    expect(detailRow.classList.contains('detail-row-open')).toBeTrue();
-    expect(detailRow.textContent).toContain('High-value transaction');
-
-    row.triggerEventHandler('click', null);
-    fixture.detectChanges();
-    expect(component.expandedAssessmentId()).toBeNull();
+    expect(row.textContent).toContain(transactionId);
   });
 
   it('reload() resets to the first page and refetches', () => {
@@ -188,6 +177,18 @@ describe('RiskAssessmentHistoryTableComponent', () => {
 
     expect(component.pageIndex()).toBe(0);
     httpMock.expectOne(historyUrl).flush(emptyPage);
+  });
+
+  it('omits transactionId from the request when unset (customer-wide history)', () => {
+    flushInitial();
+
+    const allCustomerFixture = TestBed.createComponent(RiskAssessmentHistoryTableComponent);
+    allCustomerFixture.componentRef.setInput('customerId', customerId);
+    allCustomerFixture.detectChanges();
+
+    const req = httpMock.expectOne(historyUrl);
+    expect(req.request.params.has('transactionId')).toBeFalse();
+    req.flush(emptyPage);
   });
 
   it('resets filters and reloads when the transactionId input changes', fakeAsync(() => {

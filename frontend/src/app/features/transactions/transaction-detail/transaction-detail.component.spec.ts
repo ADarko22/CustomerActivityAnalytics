@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
 import { CardTransaction } from '../../../core/models/transaction.model';
 import { TransactionDetailComponent } from './transaction-detail.component';
 
@@ -33,6 +34,7 @@ describe('TransactionDetailComponent', () => {
         provideHttpClientTesting(),
         provideNoopAnimations(),
         provideNativeDateAdapter(),
+        provideRouter([]),
       ],
     });
     fixture = TestBed.createComponent(TransactionDetailComponent);
@@ -50,17 +52,14 @@ describe('TransactionDetailComponent', () => {
     expect(text).toContain('Select a transaction');
   });
 
-  it('renders card-specific fields and the AI risk assessment section for a CARD transaction', () => {
+  it('renders card-specific fields and both AI risk assessment actions for a CARD transaction', () => {
     fixture.componentInstance.transaction = cardTransaction;
     fixture.detectChanges();
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers/customer-1/ai-assessments')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Amazon');
     expect(text).toContain('DEBIT');
-    expect(text).toContain('AI Risk Assessment');
     expect(text).toContain('Run AI Risk Assessment');
+    expect(text).toContain('View Risk Assessments History');
   });
 });

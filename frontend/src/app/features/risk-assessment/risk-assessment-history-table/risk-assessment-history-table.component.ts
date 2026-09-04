@@ -49,7 +49,7 @@ const FILTER_DEBOUNCE_MS = 300;
 })
 export class RiskAssessmentHistoryTableComponent implements OnChanges {
   @Input({ required: true }) customerId!: string;
-  @Input({ required: true }) transactionId!: string;
+  @Input() transactionId?: string;
 
   private readonly aiRiskAssessmentService = inject(AiRiskAssessmentService);
   private readonly filterChange$ = new Subject<void>();
@@ -68,7 +68,6 @@ export class RiskAssessmentHistoryTableComponent implements OnChanges {
 
   readonly assessments = signal<AiRiskAssessment[]>([]);
   readonly totalElements = signal(0);
-  readonly expandedAssessmentId = signal<string | null>(null);
 
   constructor() {
     this.filterChange$
@@ -84,7 +83,6 @@ export class RiskAssessmentHistoryTableComponent implements OnChanges {
       this.filters.set({});
       this.fromDateFilter.set(null);
       this.toDateFilter.set(null);
-      this.expandedAssessmentId.set(null);
       this.load();
     }
   }
@@ -153,12 +151,6 @@ export class RiskAssessmentHistoryTableComponent implements OnChanges {
     this.pageIndex.set(event.pageIndex);
     this.pageSize.set(event.pageSize);
     this.load();
-  }
-
-  toggleExpand(row: AiRiskAssessment): void {
-    this.expandedAssessmentId.set(
-      this.expandedAssessmentId() === row.assessmentId ? null : row.assessmentId,
-    );
   }
 
   private load(): void {

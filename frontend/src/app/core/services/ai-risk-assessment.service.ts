@@ -47,16 +47,16 @@ export class AiRiskAssessmentService {
 
   findHistory(
     customerId: string,
-    transactionId: string,
+    transactionId: string | undefined,
     filter: AiRiskAssessmentFilter,
     page: number,
     size: number,
     sort?: string,
   ): Observable<Page<AiRiskAssessment>> {
-    let params = new HttpParams()
-      .set('transactionId', transactionId)
-      .set('page', page)
-      .set('size', size);
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (transactionId) {
+      params = params.set('transactionId', transactionId);
+    }
     if (sort) {
       params = params.set('sort', sort);
     }

@@ -179,7 +179,7 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   repository queries; no embedding model, vector index, or similarity-search dependency was added. Introduced in
   Phase 4 (`docs/development/PHASE_4_PLAN.md` Clarification #1).
 
-## D18 — Single OpenAI-shaped AI client behind a swappable interface · Accepted
+## D18 — Single OpenAI-shaped AI client behind a swappable interface · Fulfilled by D19
 
 - **Decision:** The "configurable AI Provider" of `PROJECT_SPECIFICATION.md` Feature 5 is implemented as one
   concrete `risk.ai.OpenAiRiskAssessmentAiClient` (Spring AI `ChatClient` over `spring-ai-starter-model-openai`)
@@ -192,3 +192,27 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
 - **Consequence:** `risk/ai/RiskAssessmentAiClient` is the only extension point; swapping providers later means
   adding an implementation and a config switch, not touching `AiRiskAssessmentOrchestrator` or its callers.
   Introduced in Phase 4 (`docs/development/PHASE_4_PLAN.md` Clarification #4).
+
+## D19 — Multi-provider AI selection via `@ConditionalOnProperty` + concrete-`ChatModel` injection · Accepted
+
+- **Decision:** `app.ai.provider` (`openai` or `anthropic`) now genuinely selects which `RiskAssessmentAiClient`
+  bean is active — `OpenAiRiskAssessmentAiClient` and the new `AnthropicRiskAssessmentAiClient` are each
+  `@ConditionalOnProperty(prefix = "app.ai", name = "provider", havingValue = ...)`, with `openai` also
+  `matchIfMissing = true` to preserve the long-standing default. Each implementation injects the concrete
+  `OpenAiChatModel`/`AnthropicChatModel` bean rather than the generic `ChatClient.Builder`, and reports its own
+  active model name via `RiskAssessmentAiClient.modelName()`. `AiRiskAssessmentOrchestrator` no longer injects any
+  provider-specific `@Value` (previously `spring.ai.openai.chat.options.model`) — it logs whichever model the
+  active client reports.
+- **Context:** Fulfills D18's stated seam — the user has a real Anthropic subscription and asked to try it,
+  including WireMock record-mode support (documented in `local-environment/wiremock/README.md`). Verified
+  empirically (`javap` against resolved JARs) that with both `spring-ai-starter-model-openai` and
+  `spring-ai-starter-model-anthropic` on the classpath, Spring AI no longer autoconfigures a single unqualified
+  `ChatClient.Builder` bean (ambiguous between the two `ChatModel`s), which is why each client now injects its
+  provider's concrete `ChatModel` type directly instead. `spring.ai.model.chat` (both auto-configurations'
+  `matchIfMissing = true` condition) is left unset, so both `OpenAiChatModel` and `AnthropicChatModel` beans are
+  always constructed regardless of `app.ai.provider` — harmless, since neither performs a network call at
+  construction; only the app's own `RiskAssessmentAiClient` selection is gated by `app.ai.provider`.
+- **Consequence:** Adding a third provider means one more `@ConditionalOnProperty`-gated `RiskAssessmentAiClient`
+  implementation and its own `spring.ai.<provider>.*` config block — `AiRiskAssessmentOrchestrator` and its
+  callers are untouched. `docs/development/PHASE_4_EXT_PLAN.md` Design Clarification #5/#6 has the full analysis.
+  Introduced in Phase 4 EXT.
