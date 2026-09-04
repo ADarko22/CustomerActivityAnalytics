@@ -233,3 +233,24 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   stays optional (unchanged, predates this phase) even though the frontend now always supplies it — no backend
   change needed. Future closable-popup UI in this app should reuse `MatDialog` for consistency.
   Introduced in Phase 4 EXT 2 (`docs/development/PHASE_4_EXT_2_PLAN.md`), correcting Phase 4 EXT.
+
+## D21 — Administration section visibility is frontend-admin-gated, independent of the backend's own (more permissive) read access level · Accepted
+
+- **Decision:** The Angular "Administration" section (nav link, `/administration` route, and its risk-rule table)
+  is gated to the `ADMIN` realm role only — via `adminGuard` on the route and an `authService.isAdmin()` check on
+  the nav link itself — even though the backend's `GET /api/v1/risk-rules` endpoint remains `Operator`-level (any
+  authenticated user), per `docs/development/PHASE_5.md`'s own API table.
+- **Context:** D2 already covers the *core* mechanism ("role-based access: read for all; admin/editor for
+  risk-rule writes" at the backend), but does not say anything about which *frontend* users should ever see the
+  Administration section itself. `PHASE_5.md`'s Testing Scope separately asks to verify "admin-only visibility of
+  the Administration section," while its API table lists `GET /risk-rules`'s access level as `Operator`. Rather
+  than silently picking one interpretation, both are honored simultaneously: the backend endpoint stays the more
+  permissive of the two (any operator could still call it directly — e.g. a future admin tool, or `curl` with a
+  valid token), while the frontend's own UX choice is to only surface the section to `ADMIN` users, since its sole
+  purpose in this phase (risk-rule management) is something only `ADMIN` can act on anyway. The `adminGuard` is a
+  UX gate, not the security boundary — the real boundary is the backend's `hasRole("ADMIN")` check on the three
+  write verbs.
+- **Consequence:** `AdministrationPageComponent`/`RiskRulesTableComponent` render their edit/delete controls only
+  when `authService.isAdmin()` is true; a non-admin operator who reaches `/api/v1/risk-rules` directly (bypassing
+  the UI) still gets a `200` read response, by design. Introduced in Phase 5
+  (`docs/development/PHASE_5_PLAN.md` Clarification #7).

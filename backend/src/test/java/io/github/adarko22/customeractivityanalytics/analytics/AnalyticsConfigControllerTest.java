@@ -1,5 +1,6 @@
 package io.github.adarko22.customeractivityanalytics.analytics;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AnalyticsConfigController.class)
@@ -24,7 +26,9 @@ class AnalyticsConfigControllerTest {
   @Test
   void returnsConfiguredRangeConstraints() throws Exception {
     mockMvc
-        .perform(get("/api/v1/analytics/range-constraints"))
+        .perform(
+            get("/api/v1/analytics/range-constraints")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.DAY.minAmount").value(1))
         .andExpect(jsonPath("$.DAY.minUnit").value("DAYS"))
@@ -33,6 +37,13 @@ class AnalyticsConfigControllerTest {
         .andExpect(jsonPath("$.YEAR.minAmount").value(1))
         .andExpect(jsonPath("$.YEAR.maxAmount").value(5))
         .andExpect(jsonPath("$.YEAR.maxUnit").value("YEARS"));
+  }
+
+  @Test
+  void returns401WhenUnauthenticated() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/analytics/range-constraints"))
+        .andExpect(status().isUnauthorized());
   }
 
   @TestConfiguration

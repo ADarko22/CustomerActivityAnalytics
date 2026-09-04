@@ -1,6 +1,6 @@
 # Phase 5 — Cross-Cutting Concerns (Auth & Risk-Rule Administration)
 
-**Status:** NOT_STARTED
+**Status:** IMPLEMENTED
 **Depends on:** Phases 2–4 — secures the existing endpoints and adds admin CRUD over the risk rules used in Phase 4.
 
 ## Objective

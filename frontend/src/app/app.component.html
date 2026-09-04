@@ -1,6 +1,23 @@
 <header class="app-header">
   <h1>{{ title }}</h1>
+  <nav class="app-nav">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+      >Customer Analytics</a
+    >
+    @if (isAdmin()) {
+      <a routerLink="/administration" routerLinkActive="active">Administration</a>
+    }
+  </nav>
   <app-customer-search />
+  <div class="app-user">
+    @if (currentUser(); as user) {
+      <span class="app-user-name">{{ user.firstName }} {{ user.lastName }}</span>
+    }
+    <button mat-stroked-button type="button" (click)="logout()">
+      <fa-icon [icon]="logoutIcon" />
+      Logout
+    </button>
+  </div>
 </header>
 <main>
   <router-outlet />

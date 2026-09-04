@@ -8,6 +8,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { routes } from '../../../app.routes';
+import { AuthService } from '../../../core/services/auth.service';
 
 describe('TransactionsPageComponent (routing)', () => {
   let harness: RouterTestingHarness;
@@ -23,6 +24,10 @@ describe('TransactionsPageComponent (routing)', () => {
   };
 
   beforeEach(async () => {
+    const authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['isLoggedIn', 'isAdmin']);
+    authServiceSpy.isLoggedIn.and.returnValue(true);
+    authServiceSpy.isAdmin.and.returnValue(false);
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -31,6 +36,7 @@ describe('TransactionsPageComponent (routing)', () => {
         provideNativeDateAdapter(),
         provideCharts(withDefaultRegisterables()),
         provideRouter(routes, withComponentInputBinding()),
+        { provide: AuthService, useValue: authServiceSpy },
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);

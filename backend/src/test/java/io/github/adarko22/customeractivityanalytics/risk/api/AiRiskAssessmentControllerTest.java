@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,6 +40,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockAsyncContext;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -83,7 +85,8 @@ class AiRiskAssessmentControllerTest {
     mockMvc
         .perform(
             get("/api/v1/customers/{customerId}/ai-assessments/stream", customerId)
-                .param("transactionId", transactionId.toString()))
+                .param("transactionId", transactionId.toString())
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isNotFound());
 
     verify(orchestrator, never()).run(any(), any());
@@ -97,7 +100,8 @@ class AiRiskAssessmentControllerTest {
     mockMvc
         .perform(
             get("/api/v1/customers/{customerId}/ai-assessments/stream", customerId)
-                .param("transactionId", transactionId.toString()))
+                .param("transactionId", transactionId.toString())
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(request().asyncStarted())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
@@ -112,7 +116,8 @@ class AiRiskAssessmentControllerTest {
         mockMvc
             .perform(
                 get("/api/v1/customers/{customerId}/ai-assessments/stream", customerId)
-                    .param("transactionId", transactionId.toString()))
+                    .param("transactionId", transactionId.toString())
+                    .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
             .andExpect(request().asyncStarted())
             .andReturn();
 
@@ -156,9 +161,19 @@ class AiRiskAssessmentControllerTest {
                 .param("maxScore", "90")
                 .param("page", "0")
                 .param("size", "10")
-                .param("sort", "triggeredAt,desc"))
+                .param("sort", "triggeredAt,desc")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].riskLevel").value("HIGH"));
+  }
+
+  @Test
+  void streamReturns401WhenUnauthenticated() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/v1/customers/{customerId}/ai-assessments/stream", customerId)
+                .param("transactionId", transactionId.toString()))
+        .andExpect(status().isUnauthorized());
   }
 
   @TestConfiguration

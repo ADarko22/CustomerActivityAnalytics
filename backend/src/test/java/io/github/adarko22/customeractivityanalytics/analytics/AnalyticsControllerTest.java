@@ -3,6 +3,7 @@ package io.github.adarko22.customeractivityanalytics.analytics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -52,7 +54,9 @@ class AnalyticsControllerTest {
         .thenReturn(series);
 
     mockMvc
-        .perform(get("/api/v1/customers/{customerId}/analytics", customerId))
+        .perform(
+            get("/api/v1/customers/{customerId}/analytics", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.granularity").value("DAY"))
         .andExpect(jsonPath("$.buckets[0].transactionCount").value(2))
@@ -70,7 +74,8 @@ class AnalyticsControllerTest {
             get("/api/v1/customers/{customerId}/analytics", customerId)
                 .param("granularity", "YEAR")
                 .param("from", "2026-01-01T00:00:00Z")
-                .param("to", "2026-02-01T00:00:00Z"))
+                .param("to", "2026-02-01T00:00:00Z")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isBadRequest());
   }
 
@@ -81,7 +86,16 @@ class AnalyticsControllerTest {
         .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
     mockMvc
-        .perform(get("/api/v1/customers/{customerId}/analytics", customerId))
+        .perform(
+            get("/api/v1/customers/{customerId}/analytics", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void findTimeSeriesReturns401WhenUnauthenticated() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/customers/{customerId}/analytics", customerId))
+        .andExpect(status().isUnauthorized());
   }
 }

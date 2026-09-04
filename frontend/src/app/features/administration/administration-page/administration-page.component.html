@@ -1,0 +1,10 @@
+<div class="page-header">
+  <h2>Risk Rules</h2>
+  @if (isAdmin()) {
+    <button type="button" mat-flat-button color="primary" (click)="openCreate()">
+      <fa-icon [icon]="faPlus" /> Add Rule
+    </button>
+  }
+</div>
+
+<app-risk-rules-table (edit)="onEdit($event)" (deleteRequested)="onDeleteRequested($event)" />

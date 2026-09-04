@@ -35,5 +35,27 @@ services:
       --global-response-templating
       ${WIREMOCK_RECORD_MODE:+--record-mappings --proxy-all=${WIREMOCK_PROXY_TARGET:-https://api.openai.com}}
 
+  keycloak:
+    # Operator/OIDC login (docs/DECISIONS.md D2) — the realm, client, demo users, and roles are
+    # provisioned declaratively from ./keycloak/realm-export.json on every startup (--import-realm),
+    # so a fresh clone gets a working IdP with no manual admin-console setup. See
+    # local-environment/keycloak/README.md for the demo logins and how to re-export the realm.
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: caa-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
 volumes:
   caa-postgres-data:

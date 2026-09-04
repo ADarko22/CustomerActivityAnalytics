@@ -35,6 +35,14 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Lazy JWKS fetch (only on first real token decode) — unlike issuer-uri, this never blocks
+          # application-context startup on a live Keycloak instance (docs/development/PHASE_5_PLAN.md
+          # Clarification #1), so `./gradlew check` stays green without Keycloak running.
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/customer-activity-analytics/protocol/openid-connect/certs}
 
 app:
   analytics:

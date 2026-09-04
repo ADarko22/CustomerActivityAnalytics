@@ -1,0 +1,22 @@
+.table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem 0;
+}
+
+.scope-filter {
+  width: 12rem;
+}
+
+.risk-rules-table {
+  width: 100%;
+}
+
+.truncated {
+  display: inline-block;
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}

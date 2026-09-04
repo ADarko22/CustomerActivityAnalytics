@@ -50,7 +50,13 @@ Gradle multi-module project:
   decoupled from the SSE connection — an assessment completes and is saved even if the operator disconnects. Phase 4
   EXT makes the AI provider genuinely selectable (`app.ai.provider` = `openai`/`anthropic`, each with its own
   `RiskAssessmentAiClient` bean and Spring AI config block, D19) and sub-packages the `risk` backend package into
-  `persistence`/`engine`/`api`/`ai`/`dto`.
+  `persistence`/`engine`/`api`/`ai`/`dto`. Phase 5 replaces the temporary `permitAll` `SecurityConfig` with real
+  OAuth2/OIDC: every `/api/v1/**` endpoint now requires a valid Keycloak-issued JWT (resource-server, `jwk-set-uri`
+  based — lazy JWKS fetch, so `./gradlew check` never needs a live Keycloak, see D2), and a
+  `KeycloakRealmRoleConverter` maps the token's `realm_access.roles` claim to Spring Security authorities. `GET
+  /api/v1/me` (new `user` package) projects the caller's claims/roles for the frontend header. `risk_rules` gains
+  full CRUD (`risk/api/RiskRuleController`/`RiskRuleService`) — reads require any authenticated operator, writes
+  (`POST`/`PUT`/`DELETE`) require the `ADMIN` realm role.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
@@ -77,10 +83,18 @@ Gradle multi-module project:
   replaces itself, in place, with the final risk-level/findings/recommendations (or a retry-able error) on
   completion. Phase 4 EXT adds multi-provider AI selection (backend); Phase 4 EXT 2 adds "View Risk Assessments
   History" to that same card, opening a closable popup (`MatDialog`, D20) with a paginated, per-column-filterable,
-  flat table of that transaction's own past assessments.
-- `local-environment` — Docker Compose: PostgreSQL, and (since Phase 4) WireMock serving canned AI responses for
-  the offline demo (see `local-environment/wiremock/README.md` for the record-mode toggle); Keycloak folder still
-  reserved for Phase 5.
+  flat table of that transaction's own past assessments. Phase 5 adds operator login: `angular-oauth2-oidc` drives
+  an Authorization Code + PKCE flow against Keycloak, gating the entire app behind a valid session before any route
+  renders (an `APP_INITIALIZER`-style `provideAppInitializer` redirects to Keycloak's login page up front, then
+  calls `setupAutomaticSilentRefresh()` so a session outlives the ~5 min access-token lifetime through a full demo).
+  The header shows the logged-in operator's name (via `GET /api/v1/me`) and a logout button (Keycloak front-channel
+  logout); a new admin-only "Administration" section (nav link + route both gated to the `ADMIN` role, D21) hosts a
+  paginated risk-rules table with create/edit (`MatDialog` form, D20 precedent) and delete, backed by the new
+  `risk_rules` CRUD endpoints.
+- `local-environment` — Docker Compose: PostgreSQL, WireMock serving canned AI responses for the offline demo (see
+  `local-environment/wiremock/README.md` for the record-mode toggle), and (since Phase 5) Keycloak, provisioned
+  declaratively from `local-environment/keycloak/realm-export.json` (`--import-realm`) — see
+  `local-environment/keycloak/README.md` for the demo logins and how to re-export the realm.
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, with an optional SonarCloud pass when `SONAR_TOKEN` is
 configured.
@@ -98,11 +112,12 @@ Durable architectural decisions — including every choice that goes beyond the 
   `ANTHROPIC_API_KEY`) and clearing that provider's `local` profile `base-url` override — see
   `local-environment/wiremock/README.md` for the record-mode toggle that captures new stubs from real provider
   responses, for either provider.
-- No authentication is enforced yet: every `/api/v1/**` endpoint is open (a temporary `permitAll` `SecurityConfig`)
-  until Phase 5 wires up real OAuth2/OIDC login and role-based access — see [DECISIONS.md](docs/DECISIONS.md) D13.
+- Every `/api/v1/**` endpoint requires a valid Keycloak-issued OAuth2/OIDC JWT (D2, superseding the temporary
+  `permitAll` `SecurityConfig` from D13); risk-rule writes additionally require the `ADMIN` realm role. Demo logins
+  (`operator`/`password`, `admin`/`admin`) are provisioned in `local-environment/keycloak/realm-export.json`.
 - Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed
-  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically). Risk rules are
-  likewise read-only and seeded — rule CRUD, alongside authentication/authorization, is deferred to Phase 5.
+  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically). Risk rules gained
+  full CRUD in Phase 5, gated to the `ADMIN` role for writes (reads stay open to any authenticated operator).
 - Analytics aggregation (Phase 3) is computed in memory over an unpaged, already-filtered row fetch — no DB-side
   `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
   [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.

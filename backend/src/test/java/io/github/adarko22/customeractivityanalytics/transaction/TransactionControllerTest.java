@@ -3,6 +3,7 @@ package io.github.adarko22.customeractivityanalytics.transaction;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -21,6 +22,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -59,7 +61,9 @@ class TransactionControllerTest {
         .thenReturn(new PageImpl<>(List.of(card)));
 
     mockMvc
-        .perform(get("/api/v1/customers/{customerId}/transactions", customerId))
+        .perform(
+            get("/api/v1/customers/{customerId}/transactions", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].activityType").value("CARD"))
         .andExpect(jsonPath("$.content[0].merchantName").value("Amazon"));
@@ -85,7 +89,9 @@ class TransactionControllerTest {
         .thenReturn(new PageImpl<>(List.of(payment)));
 
     mockMvc
-        .perform(get("/api/v1/customers/{customerId}/transactions", customerId))
+        .perform(
+            get("/api/v1/customers/{customerId}/transactions", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].activityType").value("PAYMENT"))
         .andExpect(jsonPath("$.content[0].paymentMethod").value("WIRE"));
@@ -112,7 +118,9 @@ class TransactionControllerTest {
         .thenReturn(new PageImpl<>(List.of(crypto)));
 
     mockMvc
-        .perform(get("/api/v1/customers/{customerId}/transactions", customerId))
+        .perform(
+            get("/api/v1/customers/{customerId}/transactions", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].activityType").value("CRYPTO"))
         .andExpect(jsonPath("$.content[0].blockchain").value("BTC"));
@@ -126,9 +134,17 @@ class TransactionControllerTest {
     mockMvc
         .perform(
             get(
-                "/api/v1/customers/{customerId}/transactions/{transactionId}",
-                customerId,
-                transactionId))
+                    "/api/v1/customers/{customerId}/transactions/{transactionId}",
+                    customerId,
+                    transactionId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void findOverviewReturns401WhenUnauthenticated() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/customers/{customerId}/transactions", customerId))
+        .andExpect(status().isUnauthorized());
   }
 }
