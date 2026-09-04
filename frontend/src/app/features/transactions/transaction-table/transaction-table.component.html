@@ -20,7 +20,7 @@
 >
   @for (column of columns(); track column.key) {
     <ng-container [matColumnDef]="column.key">
-      <th mat-header-cell *matHeaderCellDef>
+      <th mat-header-cell *matHeaderCellDef class="table-header-cell">
         <span class="header-label" mat-sort-header>{{ column.label }}</span>
         @if (column.filterType !== 'none') {
           <button

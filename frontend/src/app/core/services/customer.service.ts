@@ -13,4 +13,8 @@ export class CustomerService {
     const params = new HttpParams().set('query', query).set('page', page).set('size', size);
     return this.http.get<Page<Customer>>(this.baseUrl, { params });
   }
+
+  getById(customerId: string): Observable<Customer> {
+    return this.http.get<Customer>(`${this.baseUrl}/${customerId}`);
+  }
 }

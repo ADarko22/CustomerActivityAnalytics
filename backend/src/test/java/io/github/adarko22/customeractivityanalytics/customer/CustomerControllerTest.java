@@ -1,6 +1,7 @@
 package io.github.adarko22.customeractivityanalytics.customer;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,9 +18,11 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(CustomerController.class)
 @Import(SecurityConfig.class)
@@ -48,6 +51,41 @@ class CustomerControllerTest {
   void searchReturns401WhenUnauthenticated() throws Exception {
     mockMvc
         .perform(get("/api/v1/customers").param("query", "ang"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void findByIdReturnsCustomer() throws Exception {
+    UUID customerId = UUID.randomUUID();
+    when(customerService.findById(eq(customerId)))
+        .thenReturn(new CustomerDto(customerId, "Angelo", "Buono"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/customers/{customerId}", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.firstName").value("Angelo"))
+        .andExpect(jsonPath("$.lastName").value("Buono"));
+  }
+
+  @Test
+  void findByIdReturns404WhenMissing() throws Exception {
+    UUID customerId = UUID.randomUUID();
+    when(customerService.findById(eq(customerId)))
+        .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+    mockMvc
+        .perform(
+            get("/api/v1/customers/{customerId}", customerId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OPERATOR"))))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void findByIdReturns401WhenUnauthenticated() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/customers/{customerId}", UUID.randomUUID()))
         .andExpect(status().isUnauthorized());
   }
 }

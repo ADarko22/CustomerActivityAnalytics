@@ -1,27 +1,15 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpDownloadProgressEvent, HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { AiRiskAssessmentEvent } from '../models/ai-risk-assessment.model';
 import { AiRiskAssessmentService } from './ai-risk-assessment.service';
 
-class FakeEventSource {
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  onerror: ((event: Event) => void) | null = null;
-  closed = false;
+function sseChunk(event: AiRiskAssessmentEvent): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
 
-  constructor(public url: string) {}
-
-  close(): void {
-    this.closed = true;
-  }
-
-  emit(data: AiRiskAssessmentEvent): void {
-    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }));
-  }
-
-  emitError(): void {
-    this.onerror?.(new Event('error'));
-  }
+function progressEvent(partialText: string): HttpDownloadProgressEvent {
+  return { type: HttpEventType.DownloadProgress, loaded: partialText.length, partialText };
 }
 
 describe('AiRiskAssessmentService', () => {
@@ -29,6 +17,7 @@ describe('AiRiskAssessmentService', () => {
   let httpMock: HttpTestingController;
   const customerId = 'customer-1';
   const transactionId = 'txn-1';
+  const streamUrl = `/api/v1/customers/${customerId}/ai-assessments/stream?transactionId=${transactionId}`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -43,96 +32,101 @@ describe('AiRiskAssessmentService', () => {
   });
 
   it('emits parsed progress events without closing the connection', () => {
-    let fake!: FakeEventSource;
     const received: AiRiskAssessmentEvent[] = [];
     let completed = false;
 
-    service
-      .streamAssessment(
-        customerId,
-        transactionId,
-        (url) => (fake = new FakeEventSource(url)) as unknown as EventSource,
-      )
-      .subscribe({
-        next: (event) => received.push(event),
-        complete: () => (completed = true),
-      });
+    service.streamAssessment(customerId, transactionId).subscribe({
+      next: (event) => received.push(event),
+      complete: () => (completed = true),
+    });
 
-    expect(fake.url).toBe(
-      `/api/v1/customers/${customerId}/ai-assessments/stream?transactionId=${transactionId}`,
-    );
-    fake.emit({ stage: 'PROMPT_BUILDING' });
-    fake.emit({ stage: 'RULE_RETRIEVAL' });
+    const req = httpMock.expectOne(streamUrl);
+    let cumulative = sseChunk({ stage: 'PROMPT_BUILDING' });
+    req.event(progressEvent(cumulative));
+    cumulative += sseChunk({ stage: 'RULE_RETRIEVAL' });
+    req.event(progressEvent(cumulative));
 
     expect(received.map((e) => e.stage)).toEqual(['PROMPT_BUILDING', 'RULE_RETRIEVAL']);
     expect(completed).toBeFalse();
-    expect(fake.closed).toBeFalse();
+
+    req.flush(cumulative);
   });
 
-  it('completes and closes the EventSource on COMPLETE', () => {
-    let fake!: FakeEventSource;
-    let completed = false;
+  it('buffers an event split across two chunks until the blank-line delimiter arrives', () => {
+    const received: AiRiskAssessmentEvent[] = [];
 
-    service
-      .streamAssessment(
-        customerId,
-        transactionId,
-        (url) => (fake = new FakeEventSource(url)) as unknown as EventSource,
-      )
-      .subscribe({ complete: () => (completed = true) });
-
-    fake.emit({
-      stage: 'COMPLETE',
-      result: {
-        assessmentId: 'a1',
-        transactionId,
-        triggeredAt: '2026-01-01T00:00:00Z',
-        riskLevel: 'LOW',
-        riskScore: 10,
-        findings: 'f',
-        recommendations: 'r',
-        ruleContributions: [],
-      },
+    service.streamAssessment(customerId, transactionId).subscribe({
+      next: (event) => received.push(event),
     });
 
-    expect(completed).toBeTrue();
-    expect(fake.closed).toBeTrue();
+    const req = httpMock.expectOne(streamUrl);
+    const full = sseChunk({ stage: 'PROMPT_BUILDING' });
+    const splitPoint = Math.floor(full.length / 2);
+
+    req.event(progressEvent(full.slice(0, splitPoint)));
+    expect(received).toEqual([]);
+
+    req.event(progressEvent(full));
+    expect(received.map((e) => e.stage)).toEqual(['PROMPT_BUILDING']);
+
+    req.flush(full);
   });
 
-  it('completes and closes the EventSource on FAILED', () => {
-    let fake!: FakeEventSource;
+  it('completes and cancels the request on COMPLETE', () => {
     let completed = false;
 
     service
-      .streamAssessment(
-        customerId,
-        transactionId,
-        (url) => (fake = new FakeEventSource(url)) as unknown as EventSource,
-      )
+      .streamAssessment(customerId, transactionId)
       .subscribe({ complete: () => (completed = true) });
 
-    fake.emit({ stage: 'FAILED', message: 'boom' });
+    const req = httpMock.expectOne(streamUrl);
+    req.event(
+      progressEvent(
+        sseChunk({
+          stage: 'COMPLETE',
+          result: {
+            assessmentId: 'a1',
+            transactionId,
+            triggeredAt: '2026-01-01T00:00:00Z',
+            riskLevel: 'LOW',
+            riskScore: 10,
+            findings: 'f',
+            recommendations: 'r',
+            ruleContributions: [],
+          },
+        }),
+      ),
+    );
 
     expect(completed).toBeTrue();
-    expect(fake.closed).toBeTrue();
+    expect(req.cancelled).toBeTrue();
   });
 
-  it('propagates connection errors and closes the EventSource', () => {
-    let fake!: FakeEventSource;
+  it('completes and cancels the request on FAILED', () => {
+    let completed = false;
+
+    service
+      .streamAssessment(customerId, transactionId)
+      .subscribe({ complete: () => (completed = true) });
+
+    const req = httpMock.expectOne(streamUrl);
+    req.event(progressEvent(sseChunk({ stage: 'FAILED', message: 'boom' })));
+
+    expect(completed).toBeTrue();
+    expect(req.cancelled).toBeTrue();
+  });
+
+  it('propagates connection errors (e.g. a 401 from a missing auth token)', () => {
     let erroredOut = false;
 
     service
-      .streamAssessment(
-        customerId,
-        transactionId,
-        (url) => (fake = new FakeEventSource(url)) as unknown as EventSource,
-      )
+      .streamAssessment(customerId, transactionId)
       .subscribe({ error: () => (erroredOut = true) });
 
-    fake.emitError();
+    const req = httpMock.expectOne(streamUrl);
+    req.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
 
     expect(erroredOut).toBeTrue();
-    expect(fake.closed).toBeTrue();
   });
 
   it('builds history query params including filters, pagination and sort', () => {

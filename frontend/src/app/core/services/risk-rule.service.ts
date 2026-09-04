@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Page } from '../models/page.model';
-import { ActivityScope, RiskRule, RiskRuleWrite } from '../models/risk-rule.model';
+import { RiskRule, RiskRuleFilter, RiskRuleWrite } from '../models/risk-rule.model';
 
 @Injectable({ providedIn: 'root' })
 export class RiskRuleService {
@@ -10,7 +10,7 @@ export class RiskRuleService {
   private readonly baseUrl = '/api/v1/risk-rules';
 
   list(
-    appliesTo: ActivityScope | undefined,
+    filter: RiskRuleFilter,
     page: number,
     size: number,
     sort?: string,
@@ -19,8 +19,10 @@ export class RiskRuleService {
     if (sort) {
       params = params.set('sort', sort);
     }
-    if (appliesTo) {
-      params = params.set('appliesTo', appliesTo);
+    for (const [key, value] of Object.entries(filter)) {
+      if (value !== undefined && value !== null && value !== '') {
+        params = params.set(key, String(value));
+      }
     }
     return this.http.get<Page<RiskRule>>(this.baseUrl, { params });
   }

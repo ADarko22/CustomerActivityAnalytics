@@ -14,3 +14,11 @@ export interface RiskRuleWrite {
   thresholdLogic: string;
   weight: number;
 }
+
+export interface RiskRuleFilter {
+  appliesTo?: ActivityScope;
+  ruleName?: string;
+  thresholdLogic?: string;
+  minWeight?: number;
+  maxWeight?: number;
+}

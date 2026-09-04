@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,26 +45,28 @@ class RiskRuleServiceTest {
   }
 
   @Test
-  void findAllDelegatesToUnfilteredQueryWhenAppliesToAbsent() {
+  void findAllDelegatesToSpecificationBasedQuery() {
     Pageable pageable = PageRequest.of(0, 20);
     RiskRule rule = new RiskRule(ruleId, "Rule", RuleScope.ALL, "logic", new BigDecimal("10"));
-    when(riskRuleRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(rule)));
+    when(riskRuleRepository.findAll(any(Specification.class), eq(pageable)))
+        .thenReturn(new PageImpl<>(List.of(rule)));
 
-    Page<RiskRuleDto> result = riskRuleService.findAll(null, pageable);
+    Page<RiskRuleDto> result = riskRuleService.findAll(null, null, null, null, null, pageable);
 
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().get(0).ruleId()).isEqualTo(ruleId);
-    verify(riskRuleRepository, never()).findByAppliesTo(any(), any());
   }
 
   @Test
-  void findAllDelegatesToFilteredQueryWhenAppliesToPresent() {
+  void findAllPassesEveryProvidedFilterThrough() {
     Pageable pageable = PageRequest.of(0, 20);
     RiskRule rule = new RiskRule(ruleId, "Rule", RuleScope.CARD, "logic", new BigDecimal("10"));
-    when(riskRuleRepository.findByAppliesTo(RuleScope.CARD, pageable))
+    when(riskRuleRepository.findAll(any(Specification.class), eq(pageable)))
         .thenReturn(new PageImpl<>(List.of(rule)));
 
-    Page<RiskRuleDto> result = riskRuleService.findAll(RuleScope.CARD, pageable);
+    Page<RiskRuleDto> result =
+        riskRuleService.findAll(
+            RuleScope.CARD, "Rule", "logic", new BigDecimal("5"), new BigDecimal("20"), pageable);
 
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().get(0).appliesTo()).isEqualTo(RuleScope.CARD);

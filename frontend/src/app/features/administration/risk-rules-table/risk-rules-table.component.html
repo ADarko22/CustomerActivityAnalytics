@@ -1,63 +1,133 @@
-<div class="table-toolbar">
-  <mat-form-field appearance="outline" class="scope-filter">
-    <mat-label>Applies to</mat-label>
-    <mat-select [value]="appliesToFilter()" (selectionChange)="onFilterChange($event.value)">
-      <mat-option [value]="undefined">All</mat-option>
-      @for (option of scopeOptions; track option) {
-        <mat-option [value]="option">{{ option }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-</div>
-
-<table mat-table [dataSource]="rules()" class="risk-rules-table">
-  <ng-container matColumnDef="ruleName">
-    <th mat-header-cell *matHeaderCellDef>Rule Name</th>
-    <td mat-cell *matCellDef="let rule">{{ rule.ruleName }}</td>
-  </ng-container>
-
-  <ng-container matColumnDef="appliesTo">
-    <th mat-header-cell *matHeaderCellDef>Applies To</th>
-    <td mat-cell *matCellDef="let rule">
-      <mat-chip>{{ rule.appliesTo }}</mat-chip>
-    </td>
-  </ng-container>
-
-  <ng-container matColumnDef="thresholdLogic">
-    <th mat-header-cell *matHeaderCellDef>Threshold Logic</th>
-    <td mat-cell *matCellDef="let rule">
-      <span class="truncated" [matTooltip]="rule.thresholdLogic">{{ rule.thresholdLogic }}</span>
-    </td>
-  </ng-container>
-
-  <ng-container matColumnDef="weight">
-    <th mat-header-cell *matHeaderCellDef>Weight</th>
-    <td mat-cell *matCellDef="let rule">{{ rule.weight }}</td>
-  </ng-container>
-
-  <ng-container matColumnDef="actions">
-    <th mat-header-cell *matHeaderCellDef></th>
-    <td mat-cell *matCellDef="let rule">
-      @if (isAdmin()) {
-        <button
-          type="button"
-          mat-icon-button
-          [attr.aria-label]="'Edit ' + rule.ruleName"
-          (click)="edit.emit(rule)"
-        >
-          <fa-icon [icon]="faPen" size="xs" />
-        </button>
-        <button
-          type="button"
-          mat-icon-button
-          [attr.aria-label]="'Delete ' + rule.ruleName"
-          (click)="deleteRequested.emit(rule)"
-        >
-          <fa-icon [icon]="faTrash" size="xs" />
-        </button>
-      }
-    </td>
-  </ng-container>
+<table
+  mat-table
+  [dataSource]="rules()"
+  matSort
+  (matSortChange)="onSortChange($event)"
+  class="risk-rules-table"
+>
+  @for (column of columns; track column.key) {
+    <ng-container [matColumnDef]="column.key">
+      <th mat-header-cell *matHeaderCellDef class="table-header-cell">
+        <span class="header-label" mat-sort-header>{{ column.label }}</span>
+        @if (column.filterType !== 'none') {
+          <button
+            type="button"
+            mat-icon-button
+            class="filter-trigger"
+            [class.filter-active]="isFilterActive(column)"
+            [matMenuTriggerFor]="filterMenu"
+            (click)="$event.stopPropagation()"
+            [attr.aria-label]="'Filter ' + column.label"
+          >
+            <fa-icon [icon]="faFilter" size="xs" />
+          </button>
+          <mat-menu #filterMenu="matMenu">
+            <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+            <div class="filter-menu-content" (click)="$event.stopPropagation()">
+              @switch (column.filterType) {
+                @case ('text') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ column.label }}</mat-label>
+                    <input
+                      #textInput
+                      matInput
+                      [value]="filterValue(column.key) ?? ''"
+                      (input)="onFilterChange(column.key, $any($event.target).value)"
+                    />
+                    <button
+                      type="button"
+                      mat-icon-button
+                      matSuffix
+                      aria-label="Clear filter"
+                      (click)="clearFilter(column.key, textInput)"
+                    >
+                      <fa-icon [icon]="faXmark" size="xs" />
+                    </button>
+                  </mat-form-field>
+                }
+                @case ('select') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ column.label }}</mat-label>
+                    <mat-select
+                      [value]="filterValue(column.key)"
+                      (selectionChange)="onFilterChange(column.key, $event.value)"
+                    >
+                      <mat-option [value]="undefined">Any</mat-option>
+                      @for (option of column.selectOptions; track option) {
+                        <mat-option [value]="option">{{ option }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                }
+                @case ('weight') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Min weight</mat-label>
+                    <input
+                      #minWeightInput
+                      matInput
+                      type="number"
+                      (input)="onFilterChange('minWeight', $any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Max weight</mat-label>
+                    <input
+                      #maxWeightInput
+                      matInput
+                      type="number"
+                      (input)="onFilterChange('maxWeight', $any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <button
+                    type="button"
+                    mat-button
+                    (click)="clearWeightFilter(minWeightInput, maxWeightInput)"
+                  >
+                    <fa-icon [icon]="faXmark" size="xs" /> Clear
+                  </button>
+                }
+              }
+            </div>
+          </mat-menu>
+        }
+      </th>
+      <td mat-cell *matCellDef="let rule">
+        @switch (column.key) {
+          @case ('appliesTo') {
+            <mat-chip>{{ rule.appliesTo }}</mat-chip>
+          }
+          @case ('thresholdLogic') {
+            <span class="truncated" [matTooltip]="rule.thresholdLogic">{{
+              rule.thresholdLogic
+            }}</span>
+          }
+          @case ('actions') {
+            @if (isAdmin()) {
+              <button
+                type="button"
+                mat-icon-button
+                [attr.aria-label]="'Edit ' + rule.ruleName"
+                (click)="edit.emit(rule)"
+              >
+                <fa-icon [icon]="faPen" size="xs" />
+              </button>
+              <button
+                type="button"
+                mat-icon-button
+                [attr.aria-label]="'Delete ' + rule.ruleName"
+                (click)="deleteRequested.emit(rule)"
+              >
+                <fa-icon [icon]="faTrash" size="xs" />
+              </button>
+            }
+          }
+          @default {
+            {{ rule[column.key] }}
+          }
+        }
+      </td>
+    </ng-container>
+  }
 
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
   <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>

@@ -1,15 +1,30 @@
-.table-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.5rem 0;
-}
-
-.scope-filter {
-  width: 12rem;
-}
-
 .risk-rules-table {
   width: 100%;
+}
+
+th.mat-mdc-header-cell {
+  white-space: nowrap;
+}
+
+.header-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-trigger {
+  vertical-align: middle;
+  color: rgba(0, 0, 0, 0.4);
+
+  &.filter-active {
+    color: var(--mat-sys-primary, #e65100);
+  }
+}
+
+.filter-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
 }
 
 .truncated {

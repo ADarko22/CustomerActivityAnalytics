@@ -39,6 +39,18 @@ public class CustomerService {
     }
   }
 
+  public CustomerDto findById(UUID customerId) {
+    return customerRepository
+        .findById(customerId)
+        .map(CustomerService::toDto)
+        .orElseThrow(
+            () -> {
+              log.warn("Customer not found: customerId={}", customerId);
+              return new ResponseStatusException(
+                  HttpStatus.NOT_FOUND, "Customer not found: " + customerId);
+            });
+  }
+
   private static CustomerDto toDto(Customer customer) {
     return new CustomerDto(
         customer.getCustomerId(), customer.getFirstName(), customer.getLastName());

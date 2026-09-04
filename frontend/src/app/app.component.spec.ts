@@ -1,9 +1,13 @@
+import { Component } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { AuthService } from './core/services/auth.service';
+
+@Component({ selector: 'app-route-stub', standalone: true, template: '' })
+class RouteStubComponent {}
 
 describe('AppComponent', () => {
   let httpMock: HttpTestingController;
@@ -18,7 +22,10 @@ describe('AppComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        provideRouter([
+          { path: 'administration', component: RouteStubComponent },
+          { path: 'customers/:customerId/transactions', component: RouteStubComponent },
+        ]),
         { provide: AuthService, useValue: authServiceSpy },
       ],
     }).compileComponents();
@@ -35,15 +42,19 @@ describe('AppComponent', () => {
     });
   }
 
+  function flushCustomerSuggestions(): void {
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers')
+      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+  }
+
   it('should create the app', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
+    fixture.detectChanges();
     flushCurrentUser();
-
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
   });
 
   it('should render the title', () => {
@@ -52,18 +63,14 @@ describe('AppComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Customer Activity Analytics');
 
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
     flushCurrentUser();
   });
 
   it('renders the logged-in user name once /me resolves', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
     flushCurrentUser();
     fixture.detectChanges();
 
@@ -74,9 +81,7 @@ describe('AppComponent', () => {
   it('hides the Administration nav link for a non-admin', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
     flushCurrentUser();
     fixture.detectChanges();
 
@@ -88,9 +93,7 @@ describe('AppComponent', () => {
     authServiceSpy.isAdmin.and.returnValue(true);
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
     flushCurrentUser();
     fixture.detectChanges();
 
@@ -101,9 +104,7 @@ describe('AppComponent', () => {
   it('logout button invokes AuthService.logout', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    httpMock
-      .expectOne((r) => r.url === '/api/v1/customers')
-      .flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 5 });
+    flushCustomerSuggestions();
     flushCurrentUser();
     fixture.detectChanges();
 
@@ -112,5 +113,49 @@ describe('AppComponent', () => {
     button?.dispatchEvent(new Event('click'));
 
     expect(authServiceSpy.logout).toHaveBeenCalled();
+  });
+
+  it('hides the customer search box on the Administration route', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    flushCustomerSuggestions();
+    flushCurrentUser();
+
+    await TestBed.inject(Router).navigateByUrl('/administration');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-customer-search')).toBeNull();
+  });
+
+  it('shows the customer search box outside the Administration route', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    flushCustomerSuggestions();
+    flushCurrentUser();
+
+    await TestBed.inject(Router).navigateByUrl('/customers/abc-123/transactions');
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers/abc-123')
+      .flush({ customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' });
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-customer-search')).not.toBeNull();
+  });
+
+  it('passes the deep-linked customerId down to the search box', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    flushCustomerSuggestions();
+    flushCurrentUser();
+
+    await TestBed.inject(Router).navigateByUrl('/customers/abc-123/transactions');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.routeCustomerId()).toBe('abc-123');
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers/abc-123')
+      .flush({ customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' });
   });
 });

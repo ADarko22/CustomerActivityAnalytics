@@ -12,7 +12,9 @@
     (optionSelected)="onCustomerSelected($event)"
   >
     @for (customer of suggestions(); track customer.customerId) {
-      <mat-option [value]="customer">{{ customer.firstName }} {{ customer.lastName }}</mat-option>
+      <mat-option [value]="customer"
+        >{{ customer.firstName }} {{ customer.lastName }} ({{ customer.customerId }})</mat-option
+      >
     }
   </mat-autocomplete>
 </mat-form-field>

@@ -5,6 +5,7 @@ import io.github.adarko22.customeractivityanalytics.risk.dto.RiskRuleDto;
 import io.github.adarko22.customeractivityanalytics.risk.dto.UpdateRiskRuleDto;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RuleScope;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,8 +33,13 @@ public class RiskRuleController {
   @GetMapping("/api/v1/risk-rules")
   public Page<RiskRuleDto> findAll(
       @RequestParam(required = false) RuleScope appliesTo,
+      @RequestParam(required = false) String ruleName,
+      @RequestParam(required = false) String thresholdLogic,
+      @RequestParam(required = false) BigDecimal minWeight,
+      @RequestParam(required = false) BigDecimal maxWeight,
       @PageableDefault(size = 20, sort = "ruleName") Pageable pageable) {
-    return riskRuleService.findAll(appliesTo, pageable);
+    return riskRuleService.findAll(
+        appliesTo, ruleName, thresholdLogic, minWeight, maxWeight, pageable);
   }
 
   @PostMapping("/api/v1/risk-rules")

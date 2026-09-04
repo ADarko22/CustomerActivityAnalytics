@@ -3,12 +3,14 @@ package io.github.adarko22.customeractivityanalytics.risk.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -64,7 +66,7 @@ class RiskRuleControllerTest {
 
   @Test
   void findAllReturns200ForOperator() throws Exception {
-    when(riskRuleService.findAll(any(), any()))
+    when(riskRuleService.findAll(any(), any(), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(ruleDto()), PageRequest.of(0, 20), 1));
 
     mockMvc
@@ -75,7 +77,7 @@ class RiskRuleControllerTest {
 
   @Test
   void findAllReturns200ForAdmin() throws Exception {
-    when(riskRuleService.findAll(any(), any()))
+    when(riskRuleService.findAll(any(), any(), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(ruleDto()), PageRequest.of(0, 20), 1));
 
     mockMvc.perform(get("/api/v1/risk-rules").with(admin())).andExpect(status().isOk());
@@ -83,7 +85,36 @@ class RiskRuleControllerTest {
 
   @Test
   void findAllReturns401WhenUnauthenticated() throws Exception {
-    mockMvc.perform(get("/api/v1/risk-rules")).andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(get("/api/v1/risk-rules"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().exists("WWW-Authenticate"));
+  }
+
+  @Test
+  void findAllForwardsAllFilterParamsToTheService() throws Exception {
+    when(riskRuleService.findAll(any(), any(), any(), any(), any(), any()))
+        .thenReturn(new PageImpl<>(List.of(ruleDto()), PageRequest.of(0, 20), 1));
+
+    mockMvc
+        .perform(
+            get("/api/v1/risk-rules")
+                .param("appliesTo", "CARD")
+                .param("ruleName", "high-value")
+                .param("thresholdLogic", "amount")
+                .param("minWeight", "5")
+                .param("maxWeight", "40")
+                .with(operator()))
+        .andExpect(status().isOk());
+
+    verify(riskRuleService)
+        .findAll(
+            eq(RuleScope.CARD),
+            eq("high-value"),
+            eq("amount"),
+            eq(new BigDecimal("5")),
+            eq(new BigDecimal("40")),
+            any());
   }
 
   // --- POST/PUT/DELETE: admin allowed, operator forbidden, anonymous rejected ---
@@ -117,7 +148,8 @@ class RiskRuleControllerTest {
                 .with(operator())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isForbidden())
+        .andExpect(header().exists("WWW-Authenticate"));
   }
 
   @Test

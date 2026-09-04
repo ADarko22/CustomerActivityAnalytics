@@ -5,12 +5,15 @@ import io.github.adarko22.customeractivityanalytics.risk.dto.RiskRuleDto;
 import io.github.adarko22.customeractivityanalytics.risk.dto.UpdateRiskRuleDto;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRule;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRuleRepository;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRuleSpecifications;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RuleScope;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +31,16 @@ public class RiskRuleService {
     this.riskRuleRepository = riskRuleRepository;
   }
 
-  public Page<RiskRuleDto> findAll(RuleScope appliesTo, Pageable pageable) {
-    Page<RiskRule> page =
-        appliesTo != null
-            ? riskRuleRepository.findByAppliesTo(appliesTo, pageable)
-            : riskRuleRepository.findAll(pageable);
-    return page.map(this::toDto);
+  public Page<RiskRuleDto> findAll(
+      RuleScope appliesTo,
+      String ruleName,
+      String thresholdLogic,
+      BigDecimal minWeight,
+      BigDecimal maxWeight,
+      Pageable pageable) {
+    Specification<RiskRule> spec =
+        RiskRuleSpecifications.filter(appliesTo, ruleName, thresholdLogic, minWeight, maxWeight);
+    return riskRuleRepository.findAll(spec, pageable).map(this::toDto);
   }
 
   @Transactional

@@ -8,7 +8,9 @@
       <a routerLink="/administration" routerLinkActive="active">Administration</a>
     }
   </nav>
-  <app-customer-search />
+  @if (!isAdministrationRoute()) {
+    <app-customer-search [customerId]="routeCustomerId()" />
+  }
   <div class="app-user">
     @if (currentUser(); as user) {
       <span class="app-user-name">{{ user.firstName }} {{ user.lastName }}</span>

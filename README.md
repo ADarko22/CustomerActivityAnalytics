@@ -53,10 +53,19 @@ Gradle multi-module project:
   `persistence`/`engine`/`api`/`ai`/`dto`. Phase 5 replaces the temporary `permitAll` `SecurityConfig` with real
   OAuth2/OIDC: every `/api/v1/**` endpoint now requires a valid Keycloak-issued JWT (resource-server, `jwk-set-uri`
   based — lazy JWKS fetch, so `./gradlew check` never needs a live Keycloak, see D2), and a
-  `KeycloakRealmRoleConverter` maps the token's `realm_access.roles` claim to Spring Security authorities. `GET
+  `KeycloakRealmRoleConverter` maps the token's `realm_access.roles` claim to Spring Security authorities. Every
+  request Spring Security rejects (missing/invalid token, insufficient role) is logged at WARN via a custom
+  `AuthenticationEntryPoint`/`AccessDeniedHandler` in `SecurityConfig` — added after Phase 5 EXT's manual
+  verification pass hit an SSE auth bug (below) that produced zero backend log output, since Spring Security's own
+  rejection logging is DEBUG-only. `GET
   /api/v1/me` (new `user` package) projects the caller's claims/roles for the frontend header. `risk_rules` gains
   full CRUD (`risk/api/RiskRuleController`/`RiskRuleService`) — reads require any authenticated operator, writes
-  (`POST`/`PUT`/`DELETE`) require the `ADMIN` realm role.
+  (`POST`/`PUT`/`DELETE`) require the `ADMIN` realm role. Phase 5 EXT extends `GET /risk-rules` with `ruleName`/
+  `thresholdLogic` (case-insensitive contains) and `minWeight`/`maxWeight` (range) filters, backed by a new
+  `RiskRuleSpecifications` (`JpaSpecificationExecutor`), alongside the existing `appliesTo` filter — sorting by
+  any of the four columns already worked for free via `Pageable`. It also adds `GET /api/v1/customers/{id}` (a
+  single-customer lookup, reusing `CustomerService`'s existing 404 pattern) to support the frontend's deep-link
+  fix below.
 - `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
   transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
   and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
@@ -90,7 +99,23 @@ Gradle multi-module project:
   The header shows the logged-in operator's name (via `GET /api/v1/me`) and a logout button (Keycloak front-channel
   logout); a new admin-only "Administration" section (nav link + route both gated to the `ADMIN` role, D21) hosts a
   paginated risk-rules table with create/edit (`MatDialog` form, D20 precedent) and delete, backed by the new
-  `risk_rules` CRUD endpoints.
+  `risk_rules` CRUD endpoints. Phase 5 EXT brings that table to parity with the transaction table and
+  risk-assessment history table: per-column filter (icon-triggered menu on rule name, applies-to, threshold
+  logic, and weight range) and `mat-sort-header` sorting on every column, replacing the earlier standalone
+  "Applies To" toolbar dropdown. All three of those tables now share a single distinct-header style
+  (`.table-header-cell` in `styles.scss`, chained with Material's own `.mat-mdc-header-cell` class to win the
+  cascade against Material's own higher-specificity compiled rule). The header's customer-search box now only
+  renders on Customer Analytics routes (hidden on `/administration`, driven by `AppComponent`'s own
+  `NavigationEnd` subscription), correctly populates with the customer's name on a direct/bookmarked
+  `/customers/{id}/**` load (not just an in-app selection, via the new `GET /api/v1/customers/{id}`), and its
+  suggestion dropdown shows each customer's ID in parentheses to disambiguate same-named customers (and is a bit
+  wider than before, `420px`, so typical full names don't feel cramped). That same manual verification pass
+  surfaced an unrelated Phase 5 regression: `AiRiskAssessmentService.streamAssessment`'s native `EventSource` has
+  no header-injection hook, so it couldn't carry the Bearer JWT Phase 5 made mandatory, and every "Run AI Risk
+  Assessment" click silently 401'd with a generic "Connection lost" frontend error. Fixed by switching that
+  stream to `HttpClient` (`reportProgress`/`observe: 'events'`, parsing `DownloadProgress`'s cumulative
+  `partialText` as SSE framing) so it flows through the same `DefaultOAuthInterceptor` as every other call, rather
+  than a token-in-URL workaround.
 - `local-environment` — Docker Compose: PostgreSQL, WireMock serving canned AI responses for the offline demo (see
   `local-environment/wiremock/README.md` for the record-mode toggle), and (since Phase 5) Keycloak, provisioned
   declaratively from `local-environment/keycloak/realm-export.json` (`--import-realm`) — see

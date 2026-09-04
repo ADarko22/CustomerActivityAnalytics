@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { Router, provideRouter } from '@angular/router';
+import { Customer } from '../../core/models/customer.model';
 import { CustomerSearchComponent } from './customer-search.component';
 
 describe('CustomerSearchComponent', () => {
@@ -82,5 +83,87 @@ describe('CustomerSearchComponent', () => {
     } as unknown as MatAutocompleteSelectedEvent);
 
     expect(router.navigate).toHaveBeenCalledWith(['/customers', 'abc-123', 'analytics']);
+  });
+
+  it('populates the search box from the customerId input, without triggering suggestions', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+
+    fixture.componentRef.setInput('customerId', 'abc-123');
+    fixture.detectChanges();
+
+    const req = httpMock.expectOne((r) => r.url === '/api/v1/customers/abc-123');
+    req.flush({ customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' });
+
+    expect(component.searchControl.value as unknown as Customer).toEqual({
+      customerId: 'abc-123',
+      firstName: 'Angelo',
+      lastName: 'Buono',
+    });
+    httpMock.expectNone((r) => r.url === '/api/v1/customers' && r.params.get('query') !== '');
+  });
+
+  it('clears the search box when the customerId input is unset', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+    fixture.componentRef.setInput('customerId', 'abc-123');
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers/abc-123')
+      .flush({ customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' });
+
+    fixture.componentRef.setInput('customerId', undefined);
+    fixture.detectChanges();
+
+    expect(component.searchControl.value).toBe('');
+  });
+
+  it('cancels a stale customer lookup when customerId changes again before it resolves', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+
+    fixture.componentRef.setInput('customerId', 'stale-id');
+    fixture.detectChanges();
+    const staleReq = httpMock.expectOne((r) => r.url === '/api/v1/customers/stale-id');
+
+    fixture.componentRef.setInput('customerId', 'fresh-id');
+    fixture.detectChanges();
+    const freshReq = httpMock.expectOne((r) => r.url === '/api/v1/customers/fresh-id');
+
+    expect(staleReq.cancelled).toBeTrue();
+
+    freshReq.flush({ customerId: 'fresh-id', firstName: 'Fresh', lastName: 'Customer' });
+
+    expect(component.searchControl.value as unknown as Customer).toEqual({
+      customerId: 'fresh-id',
+      firstName: 'Fresh',
+      lastName: 'Customer',
+    });
+  });
+
+  it('does not re-fetch a customer already selected from the suggestions dropdown', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+    spyOn(router, 'navigate');
+
+    const customer = { customerId: 'abc-123', firstName: 'Angelo', lastName: 'Buono' };
+    component.onCustomerSelected({
+      option: { value: customer },
+    } as unknown as MatAutocompleteSelectedEvent);
+
+    fixture.componentRef.setInput('customerId', 'abc-123');
+    fixture.detectChanges();
+
+    httpMock.expectNone((r) => r.url === '/api/v1/customers/abc-123');
+    expect(component.searchControl.value as unknown as Customer).toEqual(customer);
+  });
+
+  it('clears the search box gracefully when the customer lookup 404s', () => {
+    httpMock.expectOne((r) => r.params.get('query') === '').flush(emptyPage);
+
+    fixture.componentRef.setInput('customerId', 'missing-id');
+    fixture.detectChanges();
+
+    httpMock
+      .expectOne((r) => r.url === '/api/v1/customers/missing-id')
+      .flush('Not found', { status: 404, statusText: 'Not Found' });
+
+    expect(component.searchControl.value).toBe('');
   });
 });

@@ -32,3 +32,19 @@ body {
 .legend-tooltip {
   white-space: pre-line;
 }
+
+// Three separately view-encapsulated table components (transaction table, risk-assessment
+// history, risk-rules admin table) need an identical header treatment — a global class, applied
+// by each, is simpler than duplicating the rule three times.
+//
+// Chained with Material's own `.mat-mdc-header-cell` class (already present on every `<th>` this
+// is applied to) rather than used alone: Material's own compiled theme CSS already targets
+// `.mat-mdc-table .mat-mdc-header-cell` (two classes, specificity 0,2,0), which silently beats a
+// bare single-class `.table-header-cell` (0,1,0) regardless of stylesheet order — confirmed via
+// getComputedStyle before landing on this fix. `th.mat-mdc-header-cell.table-header-cell` (0,2,1)
+// wins that tie-break without resorting to `!important`.
+th.mat-mdc-header-cell.table-header-cell {
+  background-color: var(--mat-sys-surface-container, #fdfaf7);
+  font-weight: 600;
+  border-bottom: 2px solid var(--mat-sys-primary, #8a4a00);
+}

@@ -28,8 +28,8 @@ describe('RiskRuleService', () => {
     httpMock.verify();
   });
 
-  it('lists rules with pagination and an optional appliesTo filter', () => {
-    service.list('CARD', 0, 20, 'ruleName,asc').subscribe();
+  it('lists rules with pagination and an appliesTo filter', () => {
+    service.list({ appliesTo: 'CARD' }, 0, 20, 'ruleName,asc').subscribe();
 
     const req = httpMock.expectOne(
       (r) =>
@@ -43,11 +43,39 @@ describe('RiskRuleService', () => {
     req.flush({ content: [rule], totalElements: 1, totalPages: 1, number: 0, size: 20 });
   });
 
-  it('omits the appliesTo param when not provided', () => {
-    service.list(undefined, 0, 20).subscribe();
+  it('omits filter params when not provided', () => {
+    service.list({}, 0, 20).subscribe();
 
     const req = httpMock.expectOne((r) => r.url === '/api/v1/risk-rules');
     expect(req.request.params.has('appliesTo')).toBe(false);
+    expect(req.request.params.has('ruleName')).toBe(false);
+    expect(req.request.params.has('thresholdLogic')).toBe(false);
+    expect(req.request.params.has('minWeight')).toBe(false);
+    expect(req.request.params.has('maxWeight')).toBe(false);
+    req.flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 });
+  });
+
+  it('sends every provided filter as a query param', () => {
+    service
+      .list(
+        {
+          appliesTo: 'CARD',
+          ruleName: 'high-value',
+          thresholdLogic: 'amount',
+          minWeight: 5,
+          maxWeight: 40,
+        },
+        0,
+        20,
+      )
+      .subscribe();
+
+    const req = httpMock.expectOne((r) => r.url === '/api/v1/risk-rules');
+    expect(req.request.params.get('appliesTo')).toBe('CARD');
+    expect(req.request.params.get('ruleName')).toBe('high-value');
+    expect(req.request.params.get('thresholdLogic')).toBe('amount');
+    expect(req.request.params.get('minWeight')).toBe('5');
+    expect(req.request.params.get('maxWeight')).toBe('40');
     req.flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 });
   });
 

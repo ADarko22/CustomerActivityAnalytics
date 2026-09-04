@@ -24,7 +24,10 @@ describe('TransactionsPageComponent (routing)', () => {
   };
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', ['isLoggedIn', 'isAdmin']);
+    const authServiceSpy = jasmine.createSpyObj<AuthService>('AuthService', [
+      'isLoggedIn',
+      'isAdmin',
+    ]);
     authServiceSpy.isLoggedIn.and.returnValue(true);
     authServiceSpy.isAdmin.and.returnValue(false);
 
