@@ -53,10 +53,6 @@ describe('TransactionsPageComponent (routing)', () => {
     return request.url === '/api/v1/analytics/range-constraints';
   }
 
-  function aiAssessmentsUrl(request: { url: string }): boolean {
-    return request.url === `/api/v1/customers/${customerId}/ai-assessments`;
-  }
-
   const rangeConstraints = {
     DAY: { minAmount: 1, minUnit: 'DAYS', maxAmount: 1, maxUnit: 'MONTHS' },
     WEEK: { minAmount: 1, minUnit: 'WEEKS', maxAmount: 30, maxUnit: 'WEEKS' },
@@ -79,13 +75,6 @@ describe('TransactionsPageComponent (routing)', () => {
     httpMock.expectOne(analyticsUrl).flush(emptySeries);
   });
 
-  it('activates the risk assessment history page on the risk-assessments route', async () => {
-    await harness.navigateByUrl(`/customers/${customerId}/risk-assessments`);
-
-    expect(TestBed.inject(Router).url).toBe(`/customers/${customerId}/risk-assessments`);
-    httpMock.expectOne(aiAssessmentsUrl).flush(emptyPage);
-  });
-
   it('redirects the bare customer route to the transactions tab', async () => {
     await harness.navigateByUrl(`/customers/${customerId}`);
 
@@ -104,7 +93,6 @@ describe('TransactionsPageComponent (routing)', () => {
     expect(links).toEqual([
       `/customers/${customerId}/transactions`,
       `/customers/${customerId}/analytics`,
-      `/customers/${customerId}/risk-assessments`,
     ]);
   });
 

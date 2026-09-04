@@ -1,0 +1,10 @@
+<h2 mat-dialog-title>Risk Assessment History</h2>
+<mat-dialog-content>
+  <app-risk-assessment-history-table
+    [customerId]="data.customerId"
+    [transactionId]="data.transactionId"
+  />
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button type="button" mat-button (click)="close()"><fa-icon [icon]="faXmark" /> Close</button>
+</mat-dialog-actions>

@@ -5,62 +5,49 @@
     </button>
   }
   @case ('running') {
-    <mat-card class="progress-card">
-      <mat-card-content>
-        <ul class="stage-list">
-          @for (stage of stageOrder; track stage) {
-            <li
-              [class.stage-done]="isStageDone(stage)"
-              [class.stage-current]="isStageCurrent(stage)"
-            >
-              @if (isStageDone(stage)) {
-                <fa-icon [icon]="faCircleCheck" class="stage-icon stage-icon-done" />
-              } @else if (isStageCurrent(stage)) {
-                <mat-progress-spinner
-                  class="stage-icon"
-                  mode="indeterminate"
-                  diameter="16"
-                  strokeWidth="2"
-                />
-              } @else {
-                <span class="stage-icon stage-icon-pending"></span>
-              }
-              {{ stageLabels[stage] }}
-            </li>
-          }
-        </ul>
-      </mat-card-content>
-    </mat-card>
+    <div class="progress-panel">
+      <ul class="stage-list">
+        @for (stage of stageOrder; track stage) {
+          <li [class.stage-done]="isStageDone(stage)" [class.stage-current]="isStageCurrent(stage)">
+            @if (isStageDone(stage)) {
+              <fa-icon [icon]="faCircleCheck" class="stage-icon stage-icon-done" />
+            } @else if (isStageCurrent(stage)) {
+              <mat-progress-spinner
+                class="stage-icon"
+                mode="indeterminate"
+                diameter="16"
+                strokeWidth="2"
+              />
+            } @else {
+              <span class="stage-icon stage-icon-pending"></span>
+            }
+            {{ stageLabels[stage] }}
+          </li>
+        }
+      </ul>
+    </div>
   }
   @case ('complete') {
     @if (result(); as r) {
-      <mat-card class="result-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-chip [class]="'risk-chip-' + r.riskLevel.toLowerCase()">{{
-              r.riskLevel
-            }}</mat-chip>
-            <span class="score-label">Score: {{ r.riskScore }}</span>
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p><strong>Findings:</strong> {{ r.findings }}</p>
-          <p><strong>Recommendations:</strong> {{ r.recommendations }}</p>
-        </mat-card-content>
-        <mat-card-actions>
+      <div class="result-panel">
+        <div class="result-header">
+          <mat-chip [class]="'risk-chip-' + r.riskLevel.toLowerCase()">{{ r.riskLevel }}</mat-chip>
+          <span class="score-label">Score: {{ r.riskScore }}</span>
+        </div>
+        <p><strong>Findings:</strong> {{ r.findings }}</p>
+        <p><strong>Recommendations:</strong> {{ r.recommendations }}</p>
+        <div class="result-actions">
           <button type="button" mat-button (click)="trigger()">Run again</button>
-        </mat-card-actions>
-      </mat-card>
+        </div>
+      </div>
     }
   }
   @case ('failed') {
-    <mat-card class="error-card">
-      <mat-card-content>
-        <p>{{ errorMessage() }}</p>
-      </mat-card-content>
-      <mat-card-actions>
+    <div class="error-panel">
+      <p>{{ errorMessage() }}</p>
+      <div class="error-actions">
         <button type="button" mat-button color="primary" (click)="trigger()">Retry</button>
-      </mat-card-actions>
-    </mat-card>
+      </div>
+    </div>
   }
 }

@@ -1,51 +1,60 @@
 @if (transaction; as txn) {
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Transaction {{ txn.transactionId }}</mat-card-title>
-      <mat-card-subtitle>{{ txn.activityType }} · {{ txn.status }}</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <p>Amount: {{ txn.amount }} {{ txn.currency }}</p>
-      <p>Date: {{ txn.createdAt }}</p>
-      @switch (txn.activityType) {
-        @case ('CARD') {
-          <p>Card: {{ txn.cardPan }} ({{ txn.cardType }})</p>
-          <p>Merchant: {{ txn.merchantName }} ({{ txn.mccCode }})</p>
-          <p>Card present: {{ txn.cardPresent ? 'Yes' : 'No' }}</p>
-          @if (txn.authorizationCode) {
-            <p>Authorization: {{ txn.authorizationCode }}</p>
+  <div class="detail-cards">
+    <mat-card class="transaction-card">
+      <mat-card-header>
+        <mat-card-title>Transaction {{ txn.transactionId }}</mat-card-title>
+        <mat-card-subtitle>{{ txn.activityType }} · {{ txn.status }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Amount: {{ txn.amount }} {{ txn.currency }}</p>
+        <p>Date: {{ txn.createdAt }}</p>
+        @switch (txn.activityType) {
+          @case ('CARD') {
+            <p>Card: {{ txn.cardPan }} ({{ txn.cardType }})</p>
+            <p>Merchant: {{ txn.merchantName }} ({{ txn.mccCode }})</p>
+            <p>Card present: {{ txn.cardPresent ? 'Yes' : 'No' }}</p>
+            @if (txn.authorizationCode) {
+              <p>Authorization: {{ txn.authorizationCode }}</p>
+            }
+            @if (txn.declineReason) {
+              <p>Decline reason: {{ txn.declineReason }}</p>
+            }
           }
-          @if (txn.declineReason) {
-            <p>Decline reason: {{ txn.declineReason }}</p>
+          @case ('PAYMENT') {
+            <p>Method: {{ txn.paymentMethod }}</p>
+            <p>Sender: {{ txn.senderAccount }}</p>
+            <p>Receiver: {{ txn.receiverAccount }} ({{ txn.receiverBankCountry }})</p>
+          }
+          @case ('CRYPTO') {
+            <p>Blockchain: {{ txn.blockchain }}</p>
+            <p>From: {{ txn.walletAddressFrom }}</p>
+            <p>To: {{ txn.walletAddressTo }}</p>
+            <p>Tx hash: {{ txn.txHash }}</p>
+            @if (txn.exchangeName) {
+              <p>Exchange: {{ txn.exchangeName }}</p>
+            }
           }
         }
-        @case ('PAYMENT') {
-          <p>Method: {{ txn.paymentMethod }}</p>
-          <p>Sender: {{ txn.senderAccount }}</p>
-          <p>Receiver: {{ txn.receiverAccount }} ({{ txn.receiverBankCountry }})</p>
-        }
-        @case ('CRYPTO') {
-          <p>Blockchain: {{ txn.blockchain }}</p>
-          <p>From: {{ txn.walletAddressFrom }}</p>
-          <p>To: {{ txn.walletAddressTo }}</p>
-          <p>Tx hash: {{ txn.txHash }}</p>
-          @if (txn.exchangeName) {
-            <p>Exchange: {{ txn.exchangeName }}</p>
-          }
-        }
-      }
-    </mat-card-content>
-    <mat-card-actions>
-      <app-risk-assessment-trigger [customerId]="customerId" [transactionId]="txn.transactionId" />
-      <button
-        type="button"
-        mat-button
-        [routerLink]="['/customers', customerId, 'risk-assessments']"
-      >
-        <fa-icon [icon]="faClockRotateLeft" /> View Risk Assessments History
-      </button>
-    </mat-card-actions>
-  </mat-card>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="risk-assessment-card">
+      <mat-card-header>
+        <mat-card-title>Risk Assessment</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-risk-assessment-trigger
+          [customerId]="customerId"
+          [transactionId]="txn.transactionId"
+        />
+      </mat-card-content>
+      <mat-card-actions>
+        <button type="button" mat-button (click)="openHistory(txn.transactionId)">
+          <fa-icon [icon]="faClockRotateLeft" /> View Risk Assessments History
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
 } @else {
   <p class="empty-state">Select a transaction to see its details.</p>
 }

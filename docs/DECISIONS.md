@@ -216,3 +216,20 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   implementation and its own `spring.ai.<provider>.*` config block — `AiRiskAssessmentOrchestrator` and its
   callers are untouched. `docs/development/PHASE_4_EXT_PLAN.md` Design Clarification #5/#6 has the full analysis.
   Introduced in Phase 4 EXT.
+
+## D20 — Risk assessment history is a per-transaction popup, not a customer-wide tab · Accepted
+
+- **Decision:** "View Risk Assessments History" opens a `MatDialog` popup — the project's first use of Angular
+  Material's dialog component — showing a flat table of *that transaction's* past assessments, closable without
+  navigating away. It is not a routed page or top-level tab, and it is not scoped to the whole customer.
+- **Context:** An earlier iteration briefly built a customer-wide "Risk Assessments" tab/route, which contradicted
+  `docs/specs/PROJECT_SPECIFICATION.md`'s own requirement ("the operator should be able to visualize the history
+  of all AI Risk Assessments **per transaction**") and the user's explicit UX correction: the trigger and its
+  result render as their own card beside the Transaction Details card (not a full-width actions row), and history
+  is reached from that card via a closable popup, not a nav destination.
+- **Consequence:** `RiskAssessmentHistoryDialogComponent` wraps the existing `RiskAssessmentHistoryTableComponent`
+  (`transactionId` required again, no `transactionId` column — every row already belongs to the transaction named
+  in the dialog's context). The backend's `transactionId` query param on `GET /customers/{id}/ai-assessments`
+  stays optional (unchanged, predates this phase) even though the frontend now always supplies it — no backend
+  change needed. Future closable-popup UI in this app should reuse `MatDialog` for consistency.
+  Introduced in Phase 4 EXT 2 (`docs/development/PHASE_4_EXT_2_PLAN.md`), correcting Phase 4 EXT.

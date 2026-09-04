@@ -6,7 +6,6 @@ export interface HistoryColumnDef {
 }
 
 export const HISTORY_COLUMNS: HistoryColumnDef[] = [
-  { key: 'transactionId', label: 'Transaction', filterType: 'none' },
   { key: 'triggeredAt', label: 'Triggered At', filterType: 'date' },
   {
     key: 'riskLevel',

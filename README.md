@@ -72,12 +72,12 @@ Gradle multi-module project:
   pattern) and changes color when any are active. The chart scrolls horizontally when a range/granularity produces
   more buckets than fit its width. Switching customers resets both the Analytics pickers/touched-state and the
   Transactions date filter to that customer's own defaults. `ng serve` proxies `/api/**` to the backend via
-  `frontend/proxy.conf.json`. Phase 4 adds AI risk assessment actions directly to each transaction's expanded detail
-  card: "Run AI Risk Assessment" shows live SSE stage progress that replaces itself with the final risk-level/
-  findings/recommendations card (or a retry-able error card) on completion. Phase 4 EXT adds a third
-  `mat-tab-nav-bar` tab, "Risk Assessments" (`.../risk-assessments`), and a "View Risk Assessments History" button
-  next to the trigger — both open a dedicated, paginated, per-column-filterable, flat (non-expandable) table of
-  every AI risk assessment for the current customer across all of their transactions.
+  `frontend/proxy.conf.json`. Phase 4 adds a "Risk Assessment" card beside each transaction's own detail card
+  (side by side, expanded from the same row — D14): "Run AI Risk Assessment" shows live SSE stage progress that
+  replaces itself, in place, with the final risk-level/findings/recommendations (or a retry-able error) on
+  completion. Phase 4 EXT adds multi-provider AI selection (backend); Phase 4 EXT 2 adds "View Risk Assessments
+  History" to that same card, opening a closable popup (`MatDialog`, D20) with a paginated, per-column-filterable,
+  flat table of that transaction's own past assessments.
 - `local-environment` — Docker Compose: PostgreSQL, and (since Phase 4) WireMock serving canned AI responses for
   the offline demo (see `local-environment/wiremock/README.md` for the record-mode toggle); Keycloak folder still
   reserved for Phase 5.

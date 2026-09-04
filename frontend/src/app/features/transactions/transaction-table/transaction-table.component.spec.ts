@@ -7,7 +7,6 @@ import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
 import { CardTransaction } from '../../../core/models/transaction.model';
 import { TransactionTableComponent } from './transaction-table.component';
 
@@ -42,7 +41,6 @@ describe('TransactionTableComponent', () => {
         provideHttpClientTesting(),
         provideNoopAnimations(),
         provideNativeDateAdapter(),
-        provideRouter([]),
       ],
     });
     fixture = TestBed.createComponent(TransactionTableComponent);

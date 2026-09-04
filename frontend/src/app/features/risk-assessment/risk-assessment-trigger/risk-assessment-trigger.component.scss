@@ -1,7 +1,20 @@
-.progress-card,
-.result-card,
-.error-card {
+.progress-panel,
+.result-panel,
+.error-panel {
   max-width: 32rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+}
+
+.result-actions,
+.error-actions {
+  margin-top: 0.25rem;
 }
 
 .stage-list {
@@ -68,6 +81,7 @@
   --mdc-chip-label-text-color: #c62828;
 }
 
-.error-card {
+.error-panel {
   border-left: 4px solid #c62828;
+  padding-left: 0.75rem;
 }

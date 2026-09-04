@@ -3,7 +3,6 @@ import { EmptyStateComponent } from './features/empty-state/empty-state.componen
 import { TransactionsPageComponent } from './features/transactions/transactions-page/transactions-page.component';
 import { TransactionTableComponent } from './features/transactions/transaction-table/transaction-table.component';
 import { AnalyticsPanelComponent } from './features/analytics/analytics-panel/analytics-panel.component';
-import { RiskAssessmentHistoryPageComponent } from './features/risk-assessment/risk-assessment-history-page/risk-assessment-history-page.component';
 
 export const routes: Routes = [
   { path: '', component: EmptyStateComponent },
@@ -14,7 +13,6 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'transactions' },
       { path: 'transactions', component: TransactionTableComponent },
       { path: 'analytics', component: AnalyticsPanelComponent },
-      { path: 'risk-assessments', component: RiskAssessmentHistoryPageComponent },
     ],
   },
 ];

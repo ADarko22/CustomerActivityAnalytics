@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { RouterLink } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { Transaction } from '../../../core/models/transaction.model';
+import { RiskAssessmentHistoryDialogComponent } from '../../risk-assessment/risk-assessment-history-dialog/risk-assessment-history-dialog.component';
 import { RiskAssessmentTriggerComponent } from '../../risk-assessment/risk-assessment-trigger/risk-assessment-trigger.component';
 
 @Component({
@@ -15,7 +16,6 @@ import { RiskAssessmentTriggerComponent } from '../../risk-assessment/risk-asses
     CommonModule,
     MatButtonModule,
     MatCardModule,
-    RouterLink,
     RiskAssessmentTriggerComponent,
     FaIconComponent,
   ],
@@ -26,5 +26,15 @@ export class TransactionDetailComponent {
   @Input({ required: true }) customerId!: string;
   @Input() transaction: Transaction | null = null;
 
+  private readonly dialog = inject(MatDialog);
+
   readonly faClockRotateLeft = faClockRotateLeft;
+
+  openHistory(transactionId: string): void {
+    this.dialog.open(RiskAssessmentHistoryDialogComponent, {
+      data: { customerId: this.customerId, transactionId },
+      width: '60%',
+      maxWidth: '95vw',
+    });
+  }
 }

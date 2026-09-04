@@ -3,9 +3,15 @@
   color: rgba(0, 0, 0, 0.6);
 }
 
-mat-card-actions {
+.detail-cards {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 1rem;
   align-items: flex-start;
-  gap: 0.75rem;
+}
+
+.transaction-card,
+.risk-assessment-card {
+  flex: 1 1 20rem;
+  min-width: 0;
 }

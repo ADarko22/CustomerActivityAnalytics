@@ -49,7 +49,7 @@ const FILTER_DEBOUNCE_MS = 300;
 })
 export class RiskAssessmentHistoryTableComponent implements OnChanges {
   @Input({ required: true }) customerId!: string;
-  @Input() transactionId?: string;
+  @Input({ required: true }) transactionId!: string;
 
   private readonly aiRiskAssessmentService = inject(AiRiskAssessmentService);
   private readonly filterChange$ = new Subject<void>();

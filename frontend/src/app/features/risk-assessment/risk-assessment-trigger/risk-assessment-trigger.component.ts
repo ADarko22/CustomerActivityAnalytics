@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
@@ -39,7 +38,6 @@ const DEFAULT_ERROR_MESSAGE = 'Connection lost while assessing this transaction.
   imports: [
     CommonModule,
     MatButtonModule,
-    MatCardModule,
     MatChipsModule,
     MatProgressSpinnerModule,
     FaIconComponent,

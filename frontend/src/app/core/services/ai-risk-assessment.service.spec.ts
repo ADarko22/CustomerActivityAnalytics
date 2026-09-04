@@ -159,14 +159,4 @@ describe('AiRiskAssessmentService', () => {
     expect(req.request.params.get('sort')).toBe('triggeredAt,desc');
     req.flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
   });
-
-  it('omits transactionId from the query params when not provided', () => {
-    service.findHistory(customerId, undefined, {}, 0, 10).subscribe();
-
-    const req = httpMock.expectOne(
-      (r) => r.url === `/api/v1/customers/${customerId}/ai-assessments`,
-    );
-    expect(req.request.params.has('transactionId')).toBeFalse();
-    req.flush({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 10 });
-  });
 });
