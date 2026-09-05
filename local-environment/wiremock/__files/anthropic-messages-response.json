@@ -1,0 +1,18 @@
+{
+  "id": "msg_wiremock-stub",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-4-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"ruleMatches\":[{\"ruleId\":\"90000000-0000-0000-0000-000000000001\",\"relevance\":0.85},{\"ruleId\":\"90000000-0000-0000-0000-000000000003\",\"relevance\":0.6}],\"findings\":\"The transaction amount significantly exceeds the high-value threshold and the activity pattern matches a high-chargeback profile, indicating an elevated risk of fraud.\",\"recommendations\":\"Verify the customer's recent activity and consider a manual review before authorizing similar future transactions.\"}"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 400,
+    "output_tokens": 120
+  }
+}

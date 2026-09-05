@@ -53,7 +53,7 @@ app:
         MONTH: { min-amount: 1, min-unit: MONTHS, max-amount: 5, max-unit: YEARS }
         YEAR: { min-amount: 1, min-unit: YEARS, max-amount: 20, max-unit: YEARS }
   ai:
-    provider: ${AI_PROVIDER:openai}
+    provider: ${AI_PROVIDER:anthropic}
     record-mode: ${AI_RECORD_MODE:false}
   risk:
     max-triggered-rules: 5

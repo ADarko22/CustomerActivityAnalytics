@@ -126,8 +126,9 @@
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
   <tr
     mat-row
-    *matRowDef="let row; columns: displayedColumns"
+    *matRowDef="let row; let i = dataIndex; columns: displayedColumns"
     class="assessment-row"
+    [class.app-alt-row]="i % 2 === 1"
     (click)="toggleExpand(row)"
   ></tr>
   <tr

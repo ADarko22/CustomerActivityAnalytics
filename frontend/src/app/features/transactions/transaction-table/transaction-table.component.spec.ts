@@ -242,6 +242,18 @@ describe('TransactionTableComponent', () => {
     ).toBeTrue();
   });
 
+  it('applies the shared header class and alternates row styling by index', () => {
+    flushInitial({ content: [card1, card2], totalElements: 2, totalPages: 1, number: 0, size: 20 });
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.css('th.table-header-cell'))).toBeTruthy();
+
+    const rows = fixture.debugElement.queryAll(By.css('tr.transaction-row'));
+    expect(rows.length).toBe(2);
+    expect((rows[0].nativeElement as HTMLElement).classList.contains('app-alt-row')).toBeFalse();
+    expect((rows[1].nativeElement as HTMLElement).classList.contains('app-alt-row')).toBeTrue();
+  });
+
   it('filters by a date range from the Date column popover, and clears it', fakeAsync(() => {
     flushInitial();
 

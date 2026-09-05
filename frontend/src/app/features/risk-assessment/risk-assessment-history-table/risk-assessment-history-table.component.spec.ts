@@ -217,4 +217,21 @@ describe('RiskAssessmentHistoryTableComponent', () => {
     expect(component.expandedAssessmentId()).toBeNull();
     expect(fixture.debugElement.queryAll(By.css('tr.detail-row-open')).length).toBe(0);
   });
+
+  it('applies the shared header class and alternates row styling by index', () => {
+    flushInitial({
+      content: [assessment1, assessment2],
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 10,
+    });
+
+    expect(fixture.debugElement.query(By.css('th.table-header-cell'))).toBeTruthy();
+
+    const rows = fixture.debugElement.queryAll(By.css('tr.assessment-row'));
+    expect(rows.length).toBe(2);
+    expect((rows[0].nativeElement as HTMLElement).classList.contains('app-alt-row')).toBeFalse();
+    expect((rows[1].nativeElement as HTMLElement).classList.contains('app-alt-row')).toBeTrue();
+  });
 });

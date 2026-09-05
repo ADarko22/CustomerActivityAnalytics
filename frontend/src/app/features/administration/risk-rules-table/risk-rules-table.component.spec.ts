@@ -195,4 +195,20 @@ describe('RiskRulesTableComponent', () => {
     expect(compiled.querySelector(`[aria-label="Edit ${rule.ruleName}"]`)).not.toBeNull();
     expect(compiled.querySelector(`[aria-label="Delete ${rule.ruleName}"]`)).not.toBeNull();
   });
+
+  it('applies the shared header class and alternates row styling by index', () => {
+    const secondRule: RiskRule = { ...rule, ruleId: 'rule-2', ruleName: 'Second rule' };
+    httpMock
+      .expectOne(riskRulesUrl)
+      .flush({ content: [rule, secondRule], totalElements: 2, totalPages: 1, number: 0, size: 20 });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('th.table-header-cell')).not.toBeNull();
+
+    const rows = compiled.querySelectorAll('tr.mat-mdc-row');
+    expect(rows.length).toBe(2);
+    expect(rows[0].classList.contains('app-alt-row')).toBeFalse();
+    expect(rows[1].classList.contains('app-alt-row')).toBeTrue();
+  });
 });

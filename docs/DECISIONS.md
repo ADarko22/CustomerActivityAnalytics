@@ -335,3 +335,24 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   not tracked as a recurring manual task. If a future Angular upgrade is done for other reasons, re-running
   `npm audit fix` at that point is the natural moment to re-check. Introduced in Phase 6
   (`docs/development/PHASE_6.md`).
+
+## D26 — Default `app.ai.provider` flips from `openai` to `anthropic` · Supersedes part of D19
+
+- **Decision:** `backend/src/main/resources/application.yml`'s `app.ai.provider: ${AI_PROVIDER:...}` default
+  changes from `openai` to `anthropic`, so `./gradlew dev` plays back the recorded Anthropic WireMock sessions
+  out of the box with no environment variables set.
+- **Context:** D19 introduced genuine multi-provider selection and explicitly kept `OpenAiRiskAssessmentAiClient`'s
+  `@ConditionalOnProperty(..., matchIfMissing = true)` "to preserve the long-standing default" — at the time,
+  OpenAI was simply the first (and, until Phase 4 EXT, only) provider implemented, not a requirement from
+  `docs/specs/PROJECT_SPECIFICATION.md` (Feature 5 asks only for "a configurable AI Provider," naming no default).
+  By Phase 7, the offline demo's WireMock fixture set (`local-environment/wiremock/mappings/anthropic-messages*
+  .json`) is substantially built out for Anthropic (15 recorded scenarios + a generic fallback, vs. OpenAI's
+  single stub), and the developer's ongoing work targets a real Anthropic subscription — defaulting to
+  `anthropic` matches where both the recorded fixtures and active development already point.
+- **Consequence:** `OpenAiRiskAssessmentAiClient`'s `matchIfMissing = true` becomes effectively unreachable in
+  normal operation, since `app.ai.provider` is now always resolved to a concrete value (`anthropic` by default,
+  or an explicit `AI_PROVIDER` override) and is never literally absent from the Spring `Environment` — the
+  annotation is left as-is (harmless, and still correctly restores the old default if the property line is ever
+  removed from `application.yml` entirely) rather than deleted, to avoid an unrelated behavior change. Explicitly
+  setting `AI_PROVIDER=openai` continues to select the OpenAI client exactly as before. Introduced in Phase 7
+  (`docs/development/PHASE_7.md`).

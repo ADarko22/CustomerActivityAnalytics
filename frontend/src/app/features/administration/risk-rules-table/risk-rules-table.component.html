@@ -130,7 +130,11 @@
   }
 
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; let i = index; columns: displayedColumns"
+    [class.app-alt-row]="i % 2 === 1"
+  ></tr>
 </table>
 
 <mat-paginator

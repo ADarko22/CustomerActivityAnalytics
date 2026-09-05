@@ -4,22 +4,27 @@
 demo runs fully offline ([DECISIONS.md](../../docs/DECISIONS.md) D4), for either provider `app.ai.provider` selects
 ([DECISIONS.md](../../docs/DECISIONS.md) D19):
 
-- OpenAI — [openai-chat-completions.json](mappings/openai-chat-completions.json) /
+- **OpenAI** — [openai-chat-completions.json](mappings/openai-chat-completions.json) /
   [openai-chat-completions-response.json](__files/openai-chat-completions-response.json)
   (`POST /v1/chat/completions`). The backend's `local`
   profile ([application-local.yml](../../backend/src/main/resources/application-local.yml)) points
   `spring.ai.openai.base-url` at this container (with the `/v1` suffix — the openai-java SDK's default
   base-url already includes the path, so a full override must too).
--
+- **Anthropic** — [anthropic-messages.json](mappings/anthropic-messages.json) /
+  [anthropic-messages-response.json](__files/anthropic-messages-response.json)
+  (`POST /v1/messages`, generic fallback, `priority: 10`) plus 15 `anthropic-messages-<suffix>.json` /
+  `anthropic-messages-<suffix>.json` scenario-specific stubs recorded from real Anthropic Haiku 4.5 responses
+  (exact-body match, default priority — see `docs/development/PHASE_7.md`).
+  [application-local.yml](../../backend/src/main/resources/application-local.yml) points
+  `spring.ai.anthropic.base-url` at the same container (no `/v1` suffix — the anthropic-java SDK appends `/v1/messages`
+  itself).
 
-Anthropic — [anthropic-messages.json](mappings/anthropic-messages.json) / [anthropic-messages-response.json](__files/anthropic-messages-response.json)
-(`POST /v1/messages`). [application-local.yml](../../backend/src/main/resources/application-local.yml) points
-`spring.ai.anthropic.base-url` at the same container (no `/v1` suffix — the anthropic-java SDK appends `/v1/messages`
-itself).
-
-Both mappings are always present, so switching `app.ai.provider` between `openai` and `anthropic`
-never requires touching WireMock config — only the mapping matching the active provider's request
-path is ever hit. Each stubbed response carries a `fixedDelayMilliseconds` of 2500ms so the SSE
+OpenAI has exactly one mapping; Anthropic has 16 (15 specific recorded scenarios + 1 generic fallback). Switching
+`app.ai.provider` between `openai` and `anthropic` (default `anthropic` since
+[DECISIONS.md](../../docs/DECISIONS.md) D26) never requires touching WireMock config — only the mapping(s)
+matching the active provider's request path are ever hit. For Anthropic, the 15 specific stubs replay their own
+exact original transaction/history verbatim; any other request falls through to the lower-priority generic
+fallback, so no request ever 404s. Each stubbed response carries a `fixedDelayMilliseconds` of 2500ms so the SSE
 `MODEL_CALL` stage is visibly in progress in the UI rather than resolving instantly, well inside the
 configured `app.risk.assessment-timeout` (45s) / `sse-timeout` (50s).
 

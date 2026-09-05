@@ -43,8 +43,27 @@ body {
 // bare single-class `.table-header-cell` (0,1,0) regardless of stylesheet order — confirmed via
 // getComputedStyle before landing on this fix. `th.mat-mdc-header-cell.table-header-cell` (0,2,1)
 // wins that tie-break without resorting to `!important`.
+//
+// Phase 7: stronger orange header — a filled orange-container background (not just the accent
+// border) so the header reads as clearly orange, not near-white.
 th.mat-mdc-header-cell.table-header-cell {
-  background-color: var(--mat-sys-surface-container, #fdfaf7);
+  background-color: var(--mat-sys-primary-container, #ffdcc2);
+  color: var(--mat-sys-on-primary-container, #2a1800);
   font-weight: 600;
   border-bottom: 2px solid var(--mat-sys-primary, #8a4a00);
+}
+
+// Phase 7: alternating row background, shared across the same three tables as the header rule
+// above. Keyed off each table's own `matRowDef` index (`app-alt-row`, bound in the component
+// templates), not DOM position: two of the three tables render a hidden `display:none` detail
+// <tr> after every data row for expand-to-detail, which would throw off :nth-child/:nth-of-type.
+tr.mat-mdc-row.app-alt-row {
+  background-color: var(--mat-sys-surface-container-low, #fff3e0);
+}
+
+// Phase 7: rounded, slightly clipped table container so the header/row corners read as
+// deliberately rounded rather than square-cut Material defaults.
+table.mat-mdc-table {
+  border-radius: 12px;
+  overflow: hidden;
 }

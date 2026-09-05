@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/messages"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFileName": "anthropic-messages-response.json",
+    "fixedDelayMilliseconds": 2500
+  },
+  "priority": 10
+}
