@@ -6,8 +6,10 @@ import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationT
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
 import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -72,7 +74,9 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, null, null, null, null, null, null, riskProperties),
+                    customerA,
+                    new RiskAssessmentHistoryFilters(null, null, null, null, null, null),
+                    riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -88,7 +92,9 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, transaction1, null, null, null, null, null, riskProperties),
+                    customerA,
+                    new RiskAssessmentHistoryFilters(transaction1, null, null, null, null, null),
+                    riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -101,7 +107,9 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, null, RiskLevel.HIGH, null, null, null, null, riskProperties),
+                    customerA,
+                    new RiskAssessmentHistoryFilters(null, RiskLevel.HIGH, null, null, null, null),
+                    riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -120,12 +128,8 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
                     customerA,
-                    transaction1,
-                    RiskLevel.HIGH,
-                    null,
-                    null,
-                    null,
-                    null,
+                    new RiskAssessmentHistoryFilters(
+                        transaction1, RiskLevel.HIGH, null, null, null, null),
                     riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
@@ -142,12 +146,8 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
                     customerA,
-                    null,
-                    null,
-                    t1.plusSeconds(1),
-                    t2.plusSeconds(1),
-                    null,
-                    null,
+                    new RiskAssessmentHistoryFilters(
+                        null, null, t1.plusSeconds(1), t2.plusSeconds(1), null, null),
                     riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
@@ -163,12 +163,8 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
                     customerA,
-                    null,
-                    null,
-                    null,
-                    null,
-                    new BigDecimal("50.00"),
-                    new BigDecimal("100.00"),
+                    new RiskAssessmentHistoryFilters(
+                        null, null, null, null, new BigDecimal("50.00"), new BigDecimal("100.00")),
                     riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
@@ -179,19 +175,14 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
 
   private static CardActivity card(UUID transactionId, UUID customerId) {
     return new CardActivity(
-        transactionId,
-        customerId,
-        new BigDecimal("25.00"),
-        "EUR",
-        TransactionStatus.COMPLETED,
-        Instant.now(),
-        "****1234",
-        "DEBIT",
-        "Amazon",
-        "5732",
-        true,
-        "AUTH1",
-        null);
+        new TransactionCoreFields(
+            transactionId,
+            customerId,
+            new BigDecimal("25.00"),
+            "EUR",
+            TransactionStatus.COMPLETED,
+            Instant.now()),
+        new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null));
   }
 
   private static RiskFinalAssessment assessment(

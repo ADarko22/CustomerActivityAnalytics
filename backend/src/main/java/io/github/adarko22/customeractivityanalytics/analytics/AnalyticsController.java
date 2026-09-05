@@ -2,6 +2,7 @@ package io.github.adarko22.customeractivityanalytics.analytics;
 
 import io.github.adarko22.customeractivityanalytics.analytics.dto.AnalyticsTimeSeriesDto;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionTypeFilters;
 import java.math.BigDecimal;
@@ -13,6 +14,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Exposes the customer analytics time-series endpoint, filterable the same way as the transaction
+ * overview.
+ */
 @RestController
 public class AnalyticsController {
 
@@ -61,16 +66,9 @@ public class AnalyticsController {
             walletAddressFrom,
             walletAddressTo,
             exchangeName);
+    TransactionCommonFilters filters =
+        new TransactionCommonFilters(status, from, to, minAmount, maxAmount, currency);
     return analyticsService.findTimeSeries(
-        customerId,
-        activityType,
-        status,
-        from,
-        to,
-        minAmount,
-        maxAmount,
-        currency,
-        typeFilters,
-        granularity);
+        customerId, activityType, filters, typeFilters, granularity);
   }
 }

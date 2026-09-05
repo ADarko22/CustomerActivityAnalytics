@@ -7,8 +7,6 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -22,46 +20,43 @@ import org.springframework.data.jpa.domain.Specification;
  */
 public final class RiskFinalAssessmentSpecifications {
 
+  private static final String RISK_SCORE = "riskScore";
+
   private RiskFinalAssessmentSpecifications() {}
 
   public static Specification<RiskFinalAssessment> filter(
       UUID customerId,
-      UUID transactionId,
-      RiskLevel riskLevel,
-      Instant from,
-      Instant to,
-      BigDecimal minScore,
-      BigDecimal maxScore,
+      RiskAssessmentHistoryFilters filters,
       RiskAssessmentProperties riskProperties) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
       predicates.add(
           root.get("transactionId").in(transactionIdsForCustomer(query, cb, customerId)));
-      if (transactionId != null) {
-        predicates.add(cb.equal(root.get("transactionId"), transactionId));
+      if (filters.transactionId() != null) {
+        predicates.add(cb.equal(root.get("transactionId"), filters.transactionId()));
       }
-      if (riskLevel != null) {
+      if (filters.riskLevel() != null) {
         RiskAssessmentProperties.LevelThresholds t = riskProperties.levelThresholds();
-        switch (riskLevel) {
-          case LOW -> predicates.add(cb.lessThanOrEqualTo(root.get("riskScore"), t.lowMax()));
+        switch (filters.riskLevel()) {
+          case LOW -> predicates.add(cb.lessThanOrEqualTo(root.get(RISK_SCORE), t.lowMax()));
           case MEDIUM -> {
-            predicates.add(cb.greaterThan(root.get("riskScore"), t.lowMax()));
-            predicates.add(cb.lessThanOrEqualTo(root.get("riskScore"), t.mediumMax()));
+            predicates.add(cb.greaterThan(root.get(RISK_SCORE), t.lowMax()));
+            predicates.add(cb.lessThanOrEqualTo(root.get(RISK_SCORE), t.mediumMax()));
           }
-          case HIGH -> predicates.add(cb.greaterThan(root.get("riskScore"), t.mediumMax()));
+          case HIGH -> predicates.add(cb.greaterThan(root.get(RISK_SCORE), t.mediumMax()));
         }
       }
-      if (from != null) {
-        predicates.add(cb.greaterThanOrEqualTo(root.get("triggeredAt"), from));
+      if (filters.from() != null) {
+        predicates.add(cb.greaterThanOrEqualTo(root.get("triggeredAt"), filters.from()));
       }
-      if (to != null) {
-        predicates.add(cb.lessThanOrEqualTo(root.get("triggeredAt"), to));
+      if (filters.to() != null) {
+        predicates.add(cb.lessThanOrEqualTo(root.get("triggeredAt"), filters.to()));
       }
-      if (minScore != null) {
-        predicates.add(cb.greaterThanOrEqualTo(root.get("riskScore"), minScore));
+      if (filters.minScore() != null) {
+        predicates.add(cb.greaterThanOrEqualTo(root.get(RISK_SCORE), filters.minScore()));
       }
-      if (maxScore != null) {
-        predicates.add(cb.lessThanOrEqualTo(root.get("riskScore"), maxScore));
+      if (filters.maxScore() != null) {
+        predicates.add(cb.lessThanOrEqualTo(root.get(RISK_SCORE), filters.maxScore()));
       }
       return cb.and(predicates.toArray(new Predicate[0]));
     };

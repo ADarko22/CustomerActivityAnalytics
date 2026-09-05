@@ -6,6 +6,7 @@ import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivit
 import io.github.adarko22.customeractivityanalytics.transaction.crypto.CryptoActivity;
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivity;
 
+/** Maps a polymorphic {@link Transaction} subtype to its matching sealed {@link TransactionDto}. */
 public final class TransactionMapper {
 
   private TransactionMapper() {}

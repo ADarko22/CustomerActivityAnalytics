@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationTest;
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,7 +44,12 @@ class PaymentActivityRepositoryTest extends AbstractPostgresIntegrationTest {
     Page<PaymentActivity> page =
         paymentActivityRepository.findAll(
             PaymentActivitySpecifications.filter(
-                customerId, null, null, null, null, null, null, "WIRE", null, null, null),
+                customerId,
+                new TransactionCommonFilters(null, null, null, null, null, null),
+                "WIRE",
+                null,
+                null,
+                null),
             PageRequest.of(0, 10, Sort.by("senderAccount")));
 
     assertThat(page.getContent())
@@ -52,12 +59,13 @@ class PaymentActivityRepositoryTest extends AbstractPostgresIntegrationTest {
 
   private PaymentActivity payment(String paymentMethod, String senderAccount) {
     return new PaymentActivity(
-        UUID.randomUUID(),
-        customerId,
-        new BigDecimal("500.00"),
-        "USD",
-        TransactionStatus.COMPLETED,
-        Instant.now(),
+        new TransactionCoreFields(
+            UUID.randomUUID(),
+            customerId,
+            new BigDecimal("500.00"),
+            "USD",
+            TransactionStatus.COMPLETED,
+            Instant.now()),
         paymentMethod,
         senderAccount,
         "RECV123",

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** Paginated, filterable transaction overview and per-transaction detail, one endpoint each. */
 @RestController
 public class TransactionController {
 
@@ -63,17 +64,10 @@ public class TransactionController {
             walletAddressFrom,
             walletAddressTo,
             exchangeName);
+    TransactionCommonFilters filters =
+        new TransactionCommonFilters(status, from, to, minAmount, maxAmount, currency);
     return transactionService.findOverview(
-        customerId,
-        activityType,
-        status,
-        from,
-        to,
-        minAmount,
-        maxAmount,
-        currency,
-        typeFilters,
-        pageable);
+        customerId, activityType, filters, typeFilters, pageable);
   }
 
   @GetMapping("/api/v1/customers/{customerId}/transactions/{transactionId}")

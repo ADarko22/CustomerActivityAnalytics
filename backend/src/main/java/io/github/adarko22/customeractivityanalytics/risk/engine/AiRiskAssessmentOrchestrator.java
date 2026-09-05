@@ -125,10 +125,12 @@ public class AiRiskAssessmentOrchestrator {
           rules.size(),
           history.size(),
           scored.level());
-      log.debug(
-          "AI risk assessment rule matches: transactionId={}, matches={}",
-          transaction.transactionId(),
-          result.ruleMatches());
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "AI risk assessment rule matches: transactionId={}, matches={}",
+            transaction.transactionId(),
+            result.ruleMatches());
+      }
 
       emitSafely(
           emitter,

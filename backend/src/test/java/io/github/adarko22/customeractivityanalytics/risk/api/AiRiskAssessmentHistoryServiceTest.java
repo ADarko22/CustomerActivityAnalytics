@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
 import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentHistoryFilters;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentLineItemRepository;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessment;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessmentRepository;
@@ -90,16 +91,15 @@ class AiRiskAssessmentHistoryServiceTest {
             riskAssessmentLineItemRepository,
             properties(new BigDecimal("10"), new BigDecimal("40")));
 
+    RiskAssessmentHistoryFilters noFilters =
+        new RiskAssessmentHistoryFilters(null, null, null, null, null, null);
     AiRiskAssessmentDto lenientResult =
         lenientService
-            .findHistory(customerId, null, null, null, null, null, null, PageRequest.of(0, 10))
+            .findHistory(customerId, noFilters, PageRequest.of(0, 10))
             .getContent()
             .get(0);
     AiRiskAssessmentDto strictResult =
-        strictService
-            .findHistory(customerId, null, null, null, null, null, null, PageRequest.of(0, 10))
-            .getContent()
-            .get(0);
+        strictService.findHistory(customerId, noFilters, PageRequest.of(0, 10)).getContent().get(0);
 
     assertThat(lenientResult.riskLevel()).isEqualTo(RiskLevel.LOW);
     assertThat(strictResult.riskLevel()).isEqualTo(RiskLevel.HIGH);

@@ -316,3 +316,22 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   progress token, but a match's only effect is the `WARN` log line — useful as a live signal that
   `PromptContextMapper`'s allow-list may need review, not as a runtime safety gate. Amended in Phase 5 EXT_2
   post-completion (`docs/development/PHASE_5_EXT_2.md`, Risks/Open Questions).
+
+## D25 — Residual frontend devDependency vulnerabilities accepted, not force-fixed · Accepted
+
+- **Decision:** The 10 `npm audit` findings against the frontend (7 moderate, 3 high — `image-size`, `qs`,
+  `uuid`, each several transitive levels deep under `@angular-devkit/build-angular`) are left in place rather
+  than resolved via `npm audit fix --force`.
+- **Context:** Phase 6 asked for the frontend to be "free of ... vulnerabilities" (AC2). A non-forced `npm audit
+  fix` makes no change — every fix path requires a breaking major bump to `@angular-devkit/build-angular` (or
+  the Angular CLI toolchain it pulls in), which `npm audit fix --force` confirms is the only route. All 10
+  findings sit exclusively in `devDependencies` used by the build/test toolchain (`less`'s image handling,
+  `karma`'s and `webpack-dev-server`'s bundled `body-parser`/`express`, `sockjs`) — none of this code ships in
+  the production Angular bundle. Forcing a breaking Angular CLI bump to chase transitive dev-tool CVEs risks
+  destabilizing the build for a vulnerability surface that is never deployed, which is a worse trade than the
+  residual risk itself.
+- **Consequence:** These 10 findings remain open in `npm audit` and are expected to clear naturally the next
+  time `@angular-devkit/build-angular` is upgraded to a release line with patched transitive dependencies —
+  not tracked as a recurring manual task. If a future Angular upgrade is done for other reasons, re-running
+  `npm audit fix` at that point is the natural moment to re-check. Introduced in Phase 6
+  (`docs/development/PHASE_6.md`).

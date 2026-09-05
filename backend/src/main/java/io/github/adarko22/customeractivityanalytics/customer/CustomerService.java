@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+/** Customer search and lookup, plus the {@code requireExists} guard used by every other service. */
 @Service
 public class CustomerService {
 

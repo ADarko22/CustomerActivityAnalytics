@@ -17,6 +17,7 @@ import io.github.adarko22.customeractivityanalytics.config.SecurityConfig;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
 import io.github.adarko22.customeractivityanalytics.risk.engine.AiRiskAssessmentOrchestrator;
 import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentHistoryFilters;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionService;
@@ -143,12 +144,14 @@ class AiRiskAssessmentControllerTest {
             List.of());
     when(historyService.findHistory(
             eq(customerId),
-            eq(transactionId),
-            eq(RiskLevel.HIGH),
-            any(),
-            any(),
-            eq(new BigDecimal("10")),
-            eq(new BigDecimal("90")),
+            eq(
+                new RiskAssessmentHistoryFilters(
+                    transactionId,
+                    RiskLevel.HIGH,
+                    null,
+                    null,
+                    new BigDecimal("10"),
+                    new BigDecimal("90"))),
             any()))
         .thenReturn(new PageImpl<>(List.of(dto), PageRequest.of(0, 10), 1));
 

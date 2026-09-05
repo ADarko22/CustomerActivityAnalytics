@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
@@ -26,30 +27,40 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 public class SecurityConfig {
 
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+  private static final String ADMIN_ROLE = "ADMIN";
 
   @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.csrf(csrf -> csrf.disable())
-        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers("/actuator/**", "/swagger-ui/**", "/api-docs/**")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/risk-rules")
-                    .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/api/v1/risk-rules/**")
-                    .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/api/v1/risk-rules/**")
-                    .hasRole("ADMIN")
-                    .anyRequest()
-                    .authenticated())
-        .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()))
-        .oauth2ResourceServer(
-            oauth2 ->
-                oauth2
-                    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                    .authenticationEntryPoint(authenticationEntryPoint()));
-    return http.build();
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    try {
+      http.csrf(
+              // Stateless, bearer-JWT-only resource server (SessionCreationPolicy.STATELESS, no
+              // cookies/sessions) — CSRF protects against an ambient credential the browser
+              // attaches
+              // automatically (a session cookie), which never applies here.
+              AbstractHttpConfigurer::disable)
+          .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+          .authorizeHttpRequests(
+              auth ->
+                  auth.requestMatchers("/actuator/**", "/swagger-ui/**", "/api-docs/**")
+                      .permitAll()
+                      .requestMatchers(HttpMethod.POST, "/api/v1/risk-rules")
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers(HttpMethod.PUT, "/api/v1/risk-rules/**")
+                      .hasRole(ADMIN_ROLE)
+                      .requestMatchers(HttpMethod.DELETE, "/api/v1/risk-rules/**")
+                      .hasRole(ADMIN_ROLE)
+                      .anyRequest()
+                      .authenticated())
+          .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler()))
+          .oauth2ResourceServer(
+              oauth2 ->
+                  oauth2
+                      .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                      .authenticationEntryPoint(authenticationEntryPoint()));
+      return http.build();
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to build the security filter chain", e);
+    }
   }
 
   @Bean

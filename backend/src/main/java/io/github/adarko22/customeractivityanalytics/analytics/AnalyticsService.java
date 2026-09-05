@@ -5,9 +5,9 @@ import io.github.adarko22.customeractivityanalytics.analytics.dto.AnalyticsTimeS
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
 import io.github.adarko22.customeractivityanalytics.transaction.Transaction;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionSpecifications;
-import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionTypeFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivitySpecifications;
@@ -69,12 +69,7 @@ public class AnalyticsService {
   public AnalyticsTimeSeriesDto findTimeSeries(
       UUID customerId,
       ActivityType activityType,
-      TransactionStatus status,
-      Instant from,
-      Instant to,
-      BigDecimal minAmount,
-      BigDecimal maxAmount,
-      String currency,
+      TransactionCommonFilters filters,
       TransactionTypeFilters typeFilters,
       Granularity granularity) {
     customerService.requireExists(customerId);
@@ -83,15 +78,16 @@ public class AnalyticsService {
 
     Instant effectiveFrom;
     Instant effectiveTo;
-    if (from != null) {
-      effectiveFrom = from;
+    if (filters.from() != null) {
+      effectiveFrom = filters.from();
       effectiveTo =
-          to != null
-              ? to
-              : minInstant(plusSpan(from, bound.maxAmount(), bound.maxUnit()), todayStart());
-    } else if (to != null) {
-      effectiveTo = to;
-      effectiveFrom = minusSpan(to, bound.maxAmount(), bound.maxUnit());
+          filters.to() != null
+              ? filters.to()
+              : minInstant(
+                  plusSpan(filters.from(), bound.maxAmount(), bound.maxUnit()), todayStart());
+    } else if (filters.to() != null) {
+      effectiveTo = filters.to();
+      effectiveFrom = minusSpan(filters.to(), bound.maxAmount(), bound.maxUnit());
     } else {
       effectiveTo = referenceInstant(customerId);
       effectiveFrom = startOfMonthDefault(effectiveTo, bound);
@@ -112,25 +108,24 @@ public class AnalyticsService {
     log.debug(
         "Analytics filters: status={}, from={}, to={}, minAmount={}, maxAmount={}, currency={},"
             + " typeFilters={}",
-        status,
+        filters.status(),
         effectiveFrom,
         effectiveTo,
-        minAmount,
-        maxAmount,
-        currency,
+        filters.minAmount(),
+        filters.maxAmount(),
+        filters.currency(),
         typeFilters);
 
-    List<? extends Transaction> rows =
-        fetchRows(
-            customerId,
-            activityType,
-            status,
+    TransactionCommonFilters effectiveFilters =
+        new TransactionCommonFilters(
+            filters.status(),
             effectiveFrom,
             effectiveTo,
-            minAmount,
-            maxAmount,
-            currency,
-            typeFilters);
+            filters.minAmount(),
+            filters.maxAmount(),
+            filters.currency());
+    List<? extends Transaction> rows =
+        fetchRows(customerId, activityType, effectiveFilters, typeFilters);
 
     List<AnalyticsBucketDto> buckets =
         bucketize(
@@ -228,29 +223,25 @@ public class AnalyticsService {
   private List<? extends Transaction> fetchRows(
       UUID customerId,
       ActivityType activityType,
-      TransactionStatus status,
-      Instant from,
-      Instant to,
-      BigDecimal minAmount,
-      BigDecimal maxAmount,
-      String currency,
+      TransactionCommonFilters filters,
       TransactionTypeFilters typeFilters) {
     if (activityType == null) {
       return transactionRepository.findAll(
           TransactionSpecifications.<Transaction>common(
-              customerId, status, from, to, minAmount, maxAmount, currency));
+              customerId,
+              filters.status(),
+              filters.from(),
+              filters.to(),
+              filters.minAmount(),
+              filters.maxAmount(),
+              filters.currency()));
     }
     return switch (activityType) {
       case CARD ->
           cardActivityRepository.findAll(
               CardActivitySpecifications.filter(
                   customerId,
-                  status,
-                  from,
-                  to,
-                  minAmount,
-                  maxAmount,
-                  currency,
+                  filters,
                   typeFilters.cardType(),
                   typeFilters.merchantName(),
                   typeFilters.mccCode(),
@@ -259,12 +250,7 @@ public class AnalyticsService {
           paymentActivityRepository.findAll(
               PaymentActivitySpecifications.filter(
                   customerId,
-                  status,
-                  from,
-                  to,
-                  minAmount,
-                  maxAmount,
-                  currency,
+                  filters,
                   typeFilters.paymentMethod(),
                   typeFilters.senderAccount(),
                   typeFilters.receiverAccount(),
@@ -273,12 +259,7 @@ public class AnalyticsService {
           cryptoActivityRepository.findAll(
               CryptoActivitySpecifications.filter(
                   customerId,
-                  status,
-                  from,
-                  to,
-                  minAmount,
-                  maxAmount,
-                  currency,
+                  filters,
                   typeFilters.blockchain(),
                   typeFilters.walletAddressFrom(),
                   typeFilters.walletAddressTo(),

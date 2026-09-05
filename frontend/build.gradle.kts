@@ -13,6 +13,8 @@ node {
 }
 
 tasks.register<NpmTask>("lint") {
+    group = "verification"
+    description = "Runs ESLint over the Angular app (npm run lint)."
     dependsOn(tasks.npmInstall)
     args.set(listOf("run", "lint"))
     inputs.dir("src")
@@ -20,6 +22,8 @@ tasks.register<NpmTask>("lint") {
 }
 
 tasks.register<NpmTask>("test") {
+    group = "verification"
+    description = "Runs Karma/Jasmine unit tests with coverage (npm run test:ci)."
     dependsOn(tasks.npmInstall)
     args.set(listOf("run", "test:ci"))
     inputs.dir("src")
@@ -27,6 +31,8 @@ tasks.register<NpmTask>("test") {
 }
 
 tasks.register<NpmTask>("buildFe") {
+    group = "build"
+    description = "Builds the production Angular bundle (npm run build)."
     dependsOn(tasks.npmInstall)
     args.set(listOf("run", "build"))
     inputs.dir("src")
@@ -45,6 +51,8 @@ tasks.assemble {
 // frontend, multiplexed with colored prefixes. Registered here (not root) because the
 // node plugin, and `concurrently` (installed as a devDependency), live in this module.
 tasks.register<NpxTask>("dev") {
+    group = "application"
+    description = "Runs Postgres, the backend, and this frontend together for local development."
     dependsOn(tasks.npmInstall)
     command.set("concurrently")
     // Gradle pipes the child process's output rather than attaching a real TTY, so chalk/

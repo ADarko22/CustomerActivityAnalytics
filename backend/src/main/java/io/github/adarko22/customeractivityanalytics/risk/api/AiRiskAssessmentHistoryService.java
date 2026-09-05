@@ -4,15 +4,13 @@ import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
 import io.github.adarko22.customeractivityanalytics.risk.dto.RuleContributionDto;
 import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentHistoryFilters;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentLineItemRepository;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessment;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessmentRepository;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessmentSpecifications;
-import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RuleContributionRow;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionService;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,33 +47,25 @@ public class AiRiskAssessmentHistoryService {
   }
 
   public Page<AiRiskAssessmentDto> findHistory(
-      UUID customerId,
-      UUID transactionId,
-      RiskLevel riskLevel,
-      Instant from,
-      Instant to,
-      BigDecimal minScore,
-      BigDecimal maxScore,
-      Pageable pageable) {
+      UUID customerId, RiskAssessmentHistoryFilters filters, Pageable pageable) {
     customerService.requireExists(customerId);
-    if (transactionId != null) {
+    if (filters.transactionId() != null) {
       // 404s if the transaction doesn't exist or doesn't belong to this customer.
-      transactionService.findDetail(customerId, transactionId);
+      transactionService.findDetail(customerId, filters.transactionId());
     }
 
     log.info(
         "Listing AI risk assessments: customerId={}, transactionId={}, riskLevel={}, page={},"
             + " size={}",
         customerId,
-        transactionId,
-        riskLevel,
+        filters.transactionId(),
+        filters.riskLevel(),
         pageable.getPageNumber(),
         pageable.getPageSize());
 
     Page<RiskFinalAssessment> page =
         riskFinalAssessmentRepository.findAll(
-            RiskFinalAssessmentSpecifications.filter(
-                customerId, transactionId, riskLevel, from, to, minScore, maxScore, riskProperties),
+            RiskFinalAssessmentSpecifications.filter(customerId, filters, riskProperties),
             pageable);
 
     Map<UUID, List<RuleContributionDto>> contributionsByAssessment = contributionsFor(page);

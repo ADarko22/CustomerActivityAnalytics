@@ -1,33 +1,36 @@
 package io.github.adarko22.customeractivityanalytics.transaction.card;
 
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionSpecifications;
-import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import jakarta.persistence.criteria.Predicate;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
+/**
+ * Query predicates for {@link CardActivity}: the shared transaction filters plus card-specific
+ * fields.
+ */
 public final class CardActivitySpecifications {
 
   private CardActivitySpecifications() {}
 
   public static Specification<CardActivity> filter(
       UUID customerId,
-      TransactionStatus status,
-      Instant from,
-      Instant to,
-      BigDecimal minAmount,
-      BigDecimal maxAmount,
-      String currency,
+      TransactionCommonFilters filters,
       String cardType,
       String merchantName,
       String mccCode,
       Boolean cardPresent) {
     return TransactionSpecifications.<CardActivity>common(
-            customerId, status, from, to, minAmount, maxAmount, currency)
+            customerId,
+            filters.status(),
+            filters.from(),
+            filters.to(),
+            filters.minAmount(),
+            filters.maxAmount(),
+            filters.currency())
         .and(typeFilters(cardType, merchantName, mccCode, cardPresent));
   }
 

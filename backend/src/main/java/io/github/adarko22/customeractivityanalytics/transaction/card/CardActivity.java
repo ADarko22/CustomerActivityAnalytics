@@ -1,15 +1,12 @@
 package io.github.adarko22.customeractivityanalytics.transaction.card;
 
 import io.github.adarko22.customeractivityanalytics.transaction.Transaction;
-import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "card_activity")
@@ -40,28 +37,21 @@ public class CardActivity extends Transaction {
 
   protected CardActivity() {}
 
-  public CardActivity(
-      UUID transactionId,
-      UUID customerId,
-      BigDecimal amount,
-      String currency,
-      TransactionStatus status,
-      Instant createdAt,
-      String cardPan,
-      String cardType,
-      String merchantName,
-      String mccCode,
-      boolean cardPresent,
-      String authorizationCode,
-      String declineReason) {
-    super(transactionId, customerId, amount, currency, status, createdAt);
-    this.cardPan = cardPan;
-    this.cardType = cardType;
-    this.merchantName = merchantName;
-    this.mccCode = mccCode;
-    this.cardPresent = cardPresent;
-    this.authorizationCode = authorizationCode;
-    this.declineReason = declineReason;
+  public CardActivity(TransactionCoreFields core, CardActivityDetails details) {
+    super(
+        core.transactionId(),
+        core.customerId(),
+        core.amount(),
+        core.currency(),
+        core.status(),
+        core.createdAt());
+    this.cardPan = details.cardPan();
+    this.cardType = details.cardType();
+    this.merchantName = details.merchantName();
+    this.mccCode = details.mccCode();
+    this.cardPresent = details.cardPresent();
+    this.authorizationCode = details.authorizationCode();
+    this.declineReason = details.declineReason();
   }
 
   public String getCardPan() {

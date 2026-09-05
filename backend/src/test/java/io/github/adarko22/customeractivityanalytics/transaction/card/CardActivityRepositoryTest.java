@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationTest;
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,7 +44,12 @@ class CardActivityRepositoryTest extends AbstractPostgresIntegrationTest {
     Page<CardActivity> page =
         cardActivityRepository.findAll(
             CardActivitySpecifications.filter(
-                customerId, null, null, null, null, null, null, "DEBIT", null, null, null),
+                customerId,
+                new TransactionCommonFilters(null, null, null, null, null, null),
+                "DEBIT",
+                null,
+                null,
+                null),
             PageRequest.of(0, 10, Sort.by("merchantName")));
 
     assertThat(page.getContent())
@@ -52,18 +59,13 @@ class CardActivityRepositoryTest extends AbstractPostgresIntegrationTest {
 
   private CardActivity card(String cardType, String merchantName) {
     return new CardActivity(
-        UUID.randomUUID(),
-        customerId,
-        new BigDecimal("25.00"),
-        "EUR",
-        TransactionStatus.COMPLETED,
-        Instant.now(),
-        "****1234",
-        cardType,
-        merchantName,
-        "5732",
-        true,
-        "AUTH1",
-        null);
+        new TransactionCoreFields(
+            UUID.randomUUID(),
+            customerId,
+            new BigDecimal("25.00"),
+            "EUR",
+            TransactionStatus.COMPLETED,
+            Instant.now()),
+        new CardActivityDetails("****1234", cardType, merchantName, "5732", true, "AUTH1", null));
   }
 }

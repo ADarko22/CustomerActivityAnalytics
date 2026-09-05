@@ -22,164 +22,76 @@ provisioned automatically by Gradle for the frontend.
   Stop with Ctrl-C.
 - **Verify:** `./gradlew check` — lint, tests, and coverage for both modules.
 - **Build:** `./gradlew build`.
-- Backend health: `http://localhost:8080/actuator/health`. Frontend: `http://localhost:4200`.
-- AI risk assessments run offline by default, against a WireMock-stubbed LLM (`local-environment/wiremock/`) — no
-  API key needed. `app.ai.provider` (`AI_PROVIDER` env var) selects `openai` (default) or `anthropic`; to use a real
-  provider instead, set the matching `OPENAI_API_KEY`/`OPENAI_MODEL` or `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` and
-  clear that provider's `local`-profile `base-url` override (see `local-environment/wiremock/README.md`).
+- **Backend health:** http://localhost:8080/actuator/health. Frontend: http://localhost:4200.
+- **AI risk assessments run offline by default** against a WireMock-stubbed LLM.
+    - Configure `app.ai.provider` (or `AI_PROVIDER` env var) to select `openai` (default) or `anthropic`
+    - set the matching `OPENAI_API_KEY`/`OPENAI_MODEL` and `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`
+    - clear the provider's `local`-profile `base-url` override (
+      see [wiremock/README.md](local-environment/wiremock/README.md)).
 
 ## Architecture
 
-Gradle multi-module project:
+Gradle multi-module project: a Spring Boot API, an Angular SPA, and a Docker Compose local environment.
 
-- `backend` — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource server.
-  Domain model (Phase 2): `customers` and polymorphic `transactions` (`CARD`/`PAYMENT`/`CRYPTO`, JPA `JOINED`
-  inheritance), exposed under `/api/v1` — customer search, a paginated/filterable/sortable transaction overview, and
-  per-transaction polymorphic detail. Phase 3 adds `GET /customers/{id}/analytics`: transaction count and
-  amount-sum-by-currency, bucketed by day/week/month/year over a filterable range. The day/week/month/year
-  range↔granularity bounds are configurable (`app.analytics.range-constraints` in `application.yml`, see
-  `DECISIONS.md` D16) and exposed read-only via `GET /api/v1/analytics/range-constraints` for the frontend to drive
-  its own validation UX; a rejected range returns a `ProblemDetail` `400` carrying structured bound/requested-range
-  extension properties alongside a human-readable message. An omitted `from` or `to` is derived from the other side
-  using the selected granularity's configured max span (never from an anchor unrelated to the provided side), capped
-  so it never resolves into the future; omitting both defaults to month-to-date relative to the customer's own
-  latest activity. Phase 4 adds an AI risk-assessment feature: `GET /customers/{id}/ai-assessments/stream` opens an
-  SSE stream of typed progress tokens (`PROMPT_BUILDING`/`RULE_RETRIEVAL`/`HISTORY_RETRIEVAL`/`MODEL_CALL`/
-  `COMPLETE`/`FAILED`) for a single transaction, then persists the outcome across two tables —
-  `risk_final_assessments` (aggregate level/score/findings) and `risk_assessments` (per-rule line items with a
-  `score_contribution = weight × relevance`, see `DECISIONS.md` D6); `GET /customers/{id}/ai-assessments` returns
-  the paginated, per-column-filterable history. Risk rules and the transaction's own prior assessments are
-  retrieved via structured DB filtering as RAG context (no vector store — D17) and sent to a Spring AI `ChatClient`
-  behind a swappable `RiskAssessmentAiClient` interface (D18); the prompt never receives PII, account numbers, or
-  wallet/tx identifiers — only categorical transaction signals (`risk/PromptContextMapper`). The model call and the
-  SSE connection have independently configured, mutually consistent timeouts (`app.risk.*`), and persistence is
-  decoupled from the SSE connection — an assessment completes and is saved even if the operator disconnects. Phase 4
-  EXT makes the AI provider genuinely selectable (`app.ai.provider` = `openai`/`anthropic`, each with its own
-  `RiskAssessmentAiClient` bean and Spring AI config block, D19) and sub-packages the `risk` backend package into
-  `persistence`/`engine`/`api`/`ai`/`dto`. Phase 5 replaces the temporary `permitAll` `SecurityConfig` with real
-  OAuth2/OIDC: every `/api/v1/**` endpoint now requires a valid Keycloak-issued JWT (resource-server, `jwk-set-uri`
-  based — lazy JWKS fetch, so `./gradlew check` never needs a live Keycloak, see D2), and a
-  `KeycloakRealmRoleConverter` maps the token's `realm_access.roles` claim to Spring Security authorities. Every
-  request Spring Security rejects (missing/invalid token, insufficient role) is logged at WARN via a custom
-  `AuthenticationEntryPoint`/`AccessDeniedHandler` in `SecurityConfig` — added after Phase 5 EXT's manual
-  verification pass hit an SSE auth bug (below) that produced zero backend log output, since Spring Security's own
-  rejection logging is DEBUG-only. `GET
-  /api/v1/me` (new `user` package) projects the caller's claims/roles for the frontend header. `risk_rules` gains
-  full CRUD (`risk/api/RiskRuleController`/`RiskRuleService`) — reads require any authenticated operator, writes
-  (`POST`/`PUT`/`DELETE`) require the `ADMIN` realm role. Phase 5 EXT extends `GET /risk-rules` with `ruleName`/
-  `thresholdLogic` (case-insensitive contains) and `minWeight`/`maxWeight` (range) filters, backed by a new
-  `RiskRuleSpecifications` (`JpaSpecificationExecutor`), alongside the existing `appliesTo` filter — sorting by
-  any of the four columns already worked for free via `Pageable`. It also adds `GET /api/v1/customers/{id}` (a
-  single-customer lookup, reusing `CustomerService`'s existing 404 pattern) to support the frontend's deep-link
-  fix below.
-- `frontend` — Angular 22 + Angular Material, FontAwesome icons. Customer search (autocomplete), a server-driven
-  transaction table with an activity-type filter, per-column sort/filter (icon-triggered popovers on each header),
-  and inline click-to-expand row detail (Phase 2 / Phase 2 EXT). A pastel orange/white Material theme is applied
-  app-wide. A customer's Transactions/Analytics views are separate, URL-synced routes
-  (`customers/:customerId/transactions` and `.../analytics`, `mat-tab-nav-bar`-driven — both deep-linkable and
-  refresh-safe, and switching customers via the header search preserves whichever tab is active) — with a shared
-  `From`/`To` transaction-date filter also available directly on the Transactions tab's Date column (icon-triggered
-  popover, matching every other filterable column). The Analytics view renders a compact date-range + granularity +
-  aggregation-type toolbar above the chart (Chart.js via `ng2-charts`, see `DECISIONS.md` D15); an untouched `From`/
-  `To` picker reflects the actual range being queried (including any side the backend computed on the caller's
-  behalf), but once the operator explicitly sets or clears a side it stays exactly as they left it — including
-  blank — across further reloads (e.g. while trying different granularities) until they change it again or switch
-  customers, rather than being silently recomputed every time. Opening a blank side's calendar positions it at the
-  boundary that would maximize the window (the same value the backend would use as that side's default), bounded
-  bidirectionally by the other side and capped at today using the backend's configured constraints (D16); each
-  field also has a "clear to default" affordance. Granularity's allowed-window legend appears on hovering its
-  label; the secondary filters (activity type, status, currency, amount range, type-specific fields) collapse
-  behind an icon that floats over the chart's top-right corner (reusing the transaction table's menu-popover
-  pattern) and changes color when any are active. The chart scrolls horizontally when a range/granularity produces
-  more buckets than fit its width. Switching customers resets both the Analytics pickers/touched-state and the
-  Transactions date filter to that customer's own defaults. `ng serve` proxies `/api/**` to the backend via
-  `frontend/proxy.conf.json`. Phase 4 adds a "Risk Assessment" card beside each transaction's own detail card
-  (side by side, expanded from the same row — D14): "Run AI Risk Assessment" shows live SSE stage progress that
-  replaces itself, in place, with the final risk-level/findings/recommendations (or a retry-able error) on
-  completion. Phase 4 EXT adds multi-provider AI selection (backend); Phase 4 EXT 2 adds "View Risk Assessments
-  History" to that same card, opening a closable popup (`MatDialog`, D20) with a paginated, per-column-filterable,
-  flat table of that transaction's own past assessments. Phase 5 adds operator login: `angular-oauth2-oidc` drives
-  an Authorization Code + PKCE flow against Keycloak, gating the entire app behind a valid session before any route
-  renders (an `APP_INITIALIZER`-style `provideAppInitializer` redirects to Keycloak's login page up front, then
-  calls `setupAutomaticSilentRefresh()` so a session outlives the ~5 min access-token lifetime through a full demo).
-  The header shows the logged-in operator's name (via `GET /api/v1/me`) and a logout button (Keycloak front-channel
-  logout); a new admin-only "Administration" section (nav link + route both gated to the `ADMIN` role, D21) hosts a
-  paginated risk-rules table with create/edit (`MatDialog` form, D20 precedent) and delete, backed by the new
-  `risk_rules` CRUD endpoints. Phase 5 EXT brings that table to parity with the transaction table and
-  risk-assessment history table: per-column filter (icon-triggered menu on rule name, applies-to, threshold
-  logic, and weight range) and `mat-sort-header` sorting on every column, replacing the earlier standalone
-  "Applies To" toolbar dropdown. All three of those tables now share a single distinct-header style
-  (`.table-header-cell` in `styles.scss`, chained with Material's own `.mat-mdc-header-cell` class to win the
-  cascade against Material's own higher-specificity compiled rule). The header's customer-search box now only
-  renders on Customer Analytics routes (hidden on `/administration`, driven by `AppComponent`'s own
-  `NavigationEnd` subscription), correctly populates with the customer's name on a direct/bookmarked
-  `/customers/{id}/**` load (not just an in-app selection, via the new `GET /api/v1/customers/{id}`), and its
-  suggestion dropdown shows each customer's ID in parentheses to disambiguate same-named customers (and is a bit
-  wider than before, `420px`, so typical full names don't feel cramped). That same manual verification pass
-  surfaced an unrelated Phase 5 regression: `AiRiskAssessmentService.streamAssessment`'s native `EventSource` has
-  no header-injection hook, so it couldn't carry the Bearer JWT Phase 5 made mandatory, and every "Run AI Risk
-  Assessment" click silently 401'd with a generic "Connection lost" frontend error. Fixed by switching that
-  stream to `HttpClient` (`reportProgress`/`observe: 'events'`, parsing `DownloadProgress`'s cumulative
-  `partialText` as SSE framing) so it flows through the same `DefaultOAuthInterceptor` as every other call, rather
-  than a token-in-URL workaround. Phase 5 EXT_2 adds a click-to-expand row on the risk-assessment history table
-  (the same `multiTemplateDataRows` inline-expand pattern as the transaction table, D14) revealing the fired risk
-  rules and each one's `scoreContribution`, sorted descending, via a new shared `RuleContributionsListComponent`
-  also used unconditionally in the live "Run AI Risk Assessment" result panel for a consistent view of a
-  freshly-completed vs. historical assessment. A new shared `RiskLevelBadgeComponent` replaces the
-  previously-duplicated risk-level chip styling in both places, recoloring LOW/MEDIUM/HIGH to
-  light-yellow/light-orange/light-red. Phase 5 EXT_2 adds a runtime PII guardrail: immediately before every model call,
-  the fully-assembled user prompt is scanned against a config-driven set of regex patterns
-  (`app.risk.guardrail.patterns` — card PAN, IBAN, email, crypto wallet address; fail-fast validated at startup) as
-  a second line of defense behind `PromptContextMapper`'s build-time allow-list. It is advisory, not blocking
-  (`docs/DECISIONS.md` D24): a match logs only the violated pattern's name at `WARN`; the model call and
-  persistence proceed exactly as on a clean prompt — a hard block was tried first but reverted after it false-
-  positived on a seeded transaction ID (a structural UUID, not PII) that happened to contain a long,
-  hyphen-bridged digit run. The SSE stream gains a `GUARDRAIL_CHECK` stage between `HISTORY_RETRIEVAL` and
-  `MODEL_CALL`. `risk_level` is no
-  longer a persisted column (`docs/DECISIONS.md` D23) — every read path (SSE completion, history list, the RAG
-  history-context block, and the history endpoint's `riskLevel` filter) now derives it on demand from the
-  persisted `risk_score` via the existing configurable thresholds, so a `app.risk.level-thresholds` change is
-  reflected retroactively across all history rather than frozen at insert time.
-- `local-environment` — Docker Compose: PostgreSQL, WireMock serving canned AI responses for the offline demo (see
-  `local-environment/wiremock/README.md` for the record-mode toggle), and (since Phase 5) Keycloak, provisioned
-  declaratively from `local-environment/keycloak/realm-export.json` (`--import-realm`) — see
-  `local-environment/keycloak/README.md` for the demo logins and how to re-export the realm.
+```mermaid
+flowchart LR
+    Operator([Operator]) --> UI[Angular SPA]
+    UI -->|REST, Bearer JWT| API[Spring Boot API]
+    UI -->|Login redirect, Authorization Code + PKCE| KC[Keycloak]
+    API --> DB[(PostgreSQL)]
+    API -->|JWKS, JWT verification| KC
+    API -->|Risk-assessment prompts| AI[AI Provider (OpenAI / Anthropic / WireMock-stubbed locally)]
+```
+
+- **`backend`** — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource
+  server.
+- **`frontend`** — Angular 22 + Angular Material + FontAwesome. Operator login gates the whole app
+  (`angular-oauth2-oidc`, Authorization Code + PKCE against Keycloak).
+- **`local-environment`** — Docker Compose: PostgreSQL, WireMock (canned AI responses for the offline demo — see
+  [wiremock/README.md](local-environment/wiremock/README.md)), and Keycloak (realm provisioned from
+  [keycloak/README.md](local-environment/keycloak/README.md) for demo logins).
 
 CI (GitHub Actions) runs `./gradlew check` on every push/PR, plus a SonarCloud analysis pass (backend JaCoCo and
 frontend LCOV coverage both feed into it) whenever the `SONAR_TOKEN` repository secret is configured — see the
-badges above and `docs/DECISIONS.md` D5/D22 for the quality-gate setup and the one deliberate analysis exclusion
-(Flyway SQL, which SonarCloud has no proper PostgreSQL analyzer for).
+badges above.
 
-Durable architectural decisions — including every choice that goes beyond the assignment PDF — are tracked in
-[DECISIONS.md](docs/DECISIONS.md).
+## Key Design Decisions
 
-### Assumptions
+The full, durable decision log — every choice made beyond the assignment PDF, with context and consequences — is
+[DECISIONS.md](docs/DECISIONS.md). The handful most material to reviewing the approach:
 
-- Local/demo use only: default database credentials in `local-environment/docker-compose.yml` and
-  `backend/src/main/resources/application.yml` are placeholders, overridable via environment variables — not
-  intended for production deployment.
-- AI risk assessments run against a WireMock-stubbed LLM by default (offline, deterministic demo, no API key
+- **D1 — Angular, not React**, for the frontend (the PDF allows substituting supporting technologies).
+- **D2 — OAuth2/OIDC via Keycloak** for operator login (Authorization Code + PKCE, role-based access).
+- **D3 — Server-Sent Events** for streaming AI risk-assessment progress to the UI.
+- **D4 — WireMock-stubbed LLM by default**, so the demo runs offline and deterministically with no API key.
+- **D6 — Two-table risk-assessment model**: an aggregate outcome table plus a per-rule line-item table.
+- **D17 — RAG as structured DB filtering**, not a vector store — the risk-rules corpus is small and structured.
+- **D19 — Multi-provider AI selection** (OpenAI/Anthropic) behind one swappable client interface.
+- **D23 — Risk level is computed on read** from the stored numeric score, never persisted, so a threshold
+  change is reflected retroactively.
+
+## Assumptions
+
+- **Local/demo use only:** default database credentials in [docker-compose.yml](local-environment/docker-compose.yml)
+  and [application.yml](backend/src/main/resources/application.yml) are placeholders, overridable via environment
+  variables.
+- **AI risk assessments run against a WireMock-stubbed LLM by default** (offline, deterministic demo, no API key
   needed). A real provider requires a real API key for the selected `app.ai.provider` (`OPENAI_API_KEY` or
   `ANTHROPIC_API_KEY`) and clearing that provider's `local` profile `base-url` override — see
-  `local-environment/wiremock/README.md` for the record-mode toggle that captures new stubs from real provider
+  [wiremock/README.md](local-environment/wiremock/README.md) for the record-mode toggle that captures new stubs from
+  real provider
   responses, for either provider.
-- Every `/api/v1/**` endpoint requires a valid Keycloak-issued OAuth2/OIDC JWT (D2, superseding the temporary
-  `permitAll` `SecurityConfig` from D13); risk-rule writes additionally require the `ADMIN` realm role. Demo logins
-  (`operator`/`password`, `admin`/`admin`) are provisioned in `local-environment/keycloak/realm-export.json`.
-- Customer/transaction data is read-only and seeded for the demo (no create/update/delete endpoints); the seed
-  dataset only loads under the `local` Spring profile (`./gradlew dev` sets this automatically). Risk rules gained
-  full CRUD in Phase 5, gated to the `ADMIN` role for writes (reads stay open to any authenticated operator).
-- Analytics aggregation (Phase 3) is computed in memory over an unpaged, already-filtered row fetch — no DB-side
+- **Every `/api/v1/**` endpoint requires a valid Keycloak-issued OAuth2/OIDC JWT (D2);** risk-rule require the `ADMIN`
+  realm role. Demo logins (`operator`/`password`, `admin`/`admin`) are provisioned .
+- **Customer/transaction data is read-only and seeded for the demo;** the seed dataset only loads under the `local`
+  Spring profile (`./gradlew dev`). Risk rules have full CRUD, gated to the `ADMIN` role for.
+- **Analytics aggregation is computed in memory over an unpaged, already-filtered row fetch** — no DB-side
   `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
   [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.
-- The AI input guardrail (Phase 5 EXT_2) is a config-driven regex safety net for PII-shaped content (card PAN,
-  IBAN, email, crypto wallet address), a second line of defense behind the build-time `PromptContextMapper`
-  allow-list — not a general-purpose NER/PII-detection model, and advisory (`WARN`-logging) rather than blocking
-  (`docs/DECISIONS.md` D24), since its broad regexes can false-positive against non-PII structural identifiers.
-  There is no free-text user input anywhere near the AI risk-assessment flow today (assessments are triggered by
-  a button click on a `transactionId`), so a
-  scope/intent classifier for "out of scope querying" was deliberately not built; revisit if a free-text
-  AI-facing feature is ever added.
+- **The AI input guardrail is a config-driven regex safety net for PII-shaped content** (card PAN, IBAN, email,
+  crypto wallet address), a second line of defense behind the build-time `PromptContextMapper` allow-list: this covers
+  erroneously data persisted and used to create the deterministic prompts; scope/intent classifier for "out of scope
+  querying" was deliberately not built; revisit if a free-text AI-facing feature is ever added.
 
 ## Implementation Journey
 
@@ -233,4 +145,27 @@ suffix, e.g. `PHASE_2_EXT`, and runs through the identical loop below). The loop
 
 ## LLMs & Agent Instructions (assignment deliverable)
 
-_Summary of the LLM provider/models used and the agent instructions given — maintained here for the assessment._
+**LLMs of choice.**
+
+The AI risk-assessment feature integrates two providers via Spring AI — OpenAI and Anthropic — selected at runtime by
+`app.ai.provider` (D19), each behind the same `RiskAssessmentAiClient` interface (D18).
+
+By default, the app runs offline against a WireMock-stubbed LLM (D4), so the demo needs no API key; pointing it at a
+real provider only requires setting that provider's API key/model env vars and clearing its `local`-profile
+`base-url` override (see [wiremock/README.md](local-environment/wiremock/README.md) for the record-mode toggle that
+captures new stubs from real responses).
+
+**Agent instructions given.**
+
+The whole application was built with Claude Code CLI, driven by a fixed instruction hierarchy rather than ad hoc
+prompting.
+
+[CLAUDE.md](CLAUDE.md) sets the coding standards and a strict source-of-truth precedence (PDF → spec → decisions → phase
+docs → code, see "Source of Truth" above).
+
+Every phase of work follows the same five-command loop described in "CLI Interactive Loop" —
+`/plan-phase` →`/review ... plan` → `/implement` → `/review ... code` → `/complete` — so the agent always plans against
+a written blueprint, and only proceeds once each step is explicitly approved.
+
+Durable decisions the agent made beyond the PDF's own text are recorded, not just implemented —
+see [DECISIONS.md](docs/DECISIONS.md).

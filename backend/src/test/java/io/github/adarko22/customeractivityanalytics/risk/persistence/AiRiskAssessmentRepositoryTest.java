@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationTest;
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -41,19 +43,14 @@ class AiRiskAssessmentRepositoryTest extends AbstractPostgresIntegrationTest {
     transactionId = UUID.randomUUID();
     cardActivityRepository.save(
         new CardActivity(
-            transactionId,
-            customerId,
-            new BigDecimal("25.00"),
-            "EUR",
-            TransactionStatus.COMPLETED,
-            Instant.now(),
-            "****1234",
-            "DEBIT",
-            "Amazon",
-            "5732",
-            true,
-            "AUTH1",
-            null));
+            new TransactionCoreFields(
+                transactionId,
+                customerId,
+                new BigDecimal("25.00"),
+                "EUR",
+                TransactionStatus.COMPLETED,
+                Instant.now()),
+            new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null)));
     ruleA =
         riskRuleRepository.save(
             new RiskRule(

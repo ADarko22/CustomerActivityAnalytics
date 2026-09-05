@@ -9,10 +9,13 @@ import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionTypeFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.crypto.CryptoActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivityRepository;
@@ -40,6 +43,8 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
   private final TransactionTypeFilters noFilters =
       new TransactionTypeFilters(
           null, null, null, null, null, null, null, null, null, null, null, null);
+  private final TransactionCommonFilters noCommonFilters =
+      new TransactionCommonFilters(null, null, null, null, null, null);
 
   private AnalyticsService analyticsService;
   private UUID customerId;
@@ -81,7 +86,11 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, day1, day3, null, null, null, noFilters, Granularity.DAY);
+            customerId,
+            null,
+            new TransactionCommonFilters(null, day1, day3, null, null, null),
+            noFilters,
+            Granularity.DAY);
 
     assertThat(series.buckets()).hasSize(3);
     assertThat(series.buckets().get(0).transactionCount()).isEqualTo(2);
@@ -96,7 +105,7 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+            customerId, null, noCommonFilters, noFilters, Granularity.DAY);
 
     long totalCount =
         series.buckets().stream().mapToLong(AnalyticsBucketDto::transactionCount).sum();
@@ -113,12 +122,8 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         analyticsService.findTimeSeries(
             customerId,
             null,
-            null,
-            day.minus(1, ChronoUnit.DAYS),
-            day,
-            null,
-            null,
-            null,
+            new TransactionCommonFilters(
+                null, day.minus(1, ChronoUnit.DAYS), day, null, null, null),
             noFilters,
             Granularity.DAY);
 
@@ -133,34 +138,25 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
     Instant day = Instant.now().truncatedTo(ChronoUnit.DAYS);
     cardActivityRepository.save(
         new CardActivity(
-            UUID.randomUUID(),
-            customerId,
-            new BigDecimal("10.00"),
-            "EUR",
-            TransactionStatus.COMPLETED,
-            day,
-            "****1234",
-            "DEBIT",
-            "Amazon",
-            "5732",
-            true,
-            "AUTH1",
-            null));
+            new TransactionCoreFields(
+                UUID.randomUUID(),
+                customerId,
+                new BigDecimal("10.00"),
+                "EUR",
+                TransactionStatus.COMPLETED,
+                day),
+            new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null)));
     cardActivityRepository.save(
         new CardActivity(
-            UUID.randomUUID(),
-            customerId,
-            new BigDecimal("20.00"),
-            "EUR",
-            TransactionStatus.COMPLETED,
-            day,
-            "****5678",
-            "CREDIT",
-            "Starbucks",
-            "5812",
-            true,
-            "AUTH2",
-            null));
+            new TransactionCoreFields(
+                UUID.randomUUID(),
+                customerId,
+                new BigDecimal("20.00"),
+                "EUR",
+                TransactionStatus.COMPLETED,
+                day),
+            new CardActivityDetails(
+                "****5678", "CREDIT", "Starbucks", "5812", true, "AUTH2", null)));
 
     TransactionTypeFilters debitOnly =
         new TransactionTypeFilters(
@@ -169,12 +165,8 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         analyticsService.findTimeSeries(
             customerId,
             ActivityType.CARD,
-            null,
-            day.minus(1, ChronoUnit.DAYS),
-            day,
-            null,
-            null,
-            null,
+            new TransactionCommonFilters(
+                null, day.minus(1, ChronoUnit.DAYS), day, null, null, null),
             debitOnly,
             Granularity.DAY);
 
@@ -186,18 +178,13 @@ class AnalyticsServiceIntegrationTest extends AbstractPostgresIntegrationTest {
   private void saveCard(BigDecimal amount, String currency, Instant createdAt) {
     cardActivityRepository.save(
         new CardActivity(
-            UUID.randomUUID(),
-            customerId,
-            amount,
-            currency,
-            TransactionStatus.COMPLETED,
-            createdAt,
-            "****1234",
-            "DEBIT",
-            "Amazon",
-            "5732",
-            true,
-            "AUTH1",
-            null));
+            new TransactionCoreFields(
+                UUID.randomUUID(),
+                customerId,
+                amount,
+                currency,
+                TransactionStatus.COMPLETED,
+                createdAt),
+            new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null)));
   }
 }

@@ -3,6 +3,7 @@ package io.github.adarko22.customeractivityanalytics.risk.api;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
 import io.github.adarko22.customeractivityanalytics.risk.engine.AiRiskAssessmentOrchestrator;
 import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
+import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentHistoryFilters;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionService;
 import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionDto;
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+/**
+ * Triggers a live-streamed AI risk assessment for a transaction and lists its assessment history.
+ */
 @RestController
 public class AiRiskAssessmentController {
 
@@ -88,7 +92,8 @@ public class AiRiskAssessmentController {
       @RequestParam(required = false) BigDecimal maxScore,
       @PageableDefault(size = 10, sort = "triggeredAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
-    return historyService.findHistory(
-        customerId, transactionId, riskLevel, from, to, minScore, maxScore, pageable);
+    RiskAssessmentHistoryFilters filters =
+        new RiskAssessmentHistoryFilters(transactionId, riskLevel, from, to, minScore, maxScore);
+    return historyService.findHistory(customerId, filters, pageable);
   }
 }

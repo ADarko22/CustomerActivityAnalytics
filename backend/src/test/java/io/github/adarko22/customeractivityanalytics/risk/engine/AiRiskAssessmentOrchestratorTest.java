@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -182,7 +183,8 @@ class AiRiskAssessmentOrchestratorTest {
     when(aiClient.assess(PROMPT))
         .thenAnswer(
             invocation -> {
-              Thread.sleep(300);
+              new CountDownLatch(1)
+                  .await(); // blocks forever; the 50ms future.get(...) times out first
               return new ModelAssessmentResult(List.of(), "findings", "recommendations");
             });
     RiskAssessmentProperties shortTimeout =

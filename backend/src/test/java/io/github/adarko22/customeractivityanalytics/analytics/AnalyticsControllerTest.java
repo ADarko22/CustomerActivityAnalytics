@@ -49,8 +49,7 @@ class AnalyticsControllerTest {
                     Instant.parse("2026-01-01T00:00:00Z"),
                     2,
                     Map.of("EUR", new BigDecimal("15.00")))));
-    when(analyticsService.findTimeSeries(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(analyticsService.findTimeSeries(eq(customerId), any(), any(), any(), any()))
         .thenReturn(series);
 
     mockMvc
@@ -65,8 +64,7 @@ class AnalyticsControllerTest {
 
   @Test
   void returns400WhenRangeInvalidForGranularity() throws Exception {
-    when(analyticsService.findTimeSeries(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(analyticsService.findTimeSeries(eq(customerId), any(), any(), any(), any()))
         .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid range"));
 
     mockMvc
@@ -81,8 +79,7 @@ class AnalyticsControllerTest {
 
   @Test
   void returns404WhenCustomerMissing() throws Exception {
-    when(analyticsService.findTimeSeries(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(analyticsService.findTimeSeries(eq(customerId), any(), any(), any(), any()))
         .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
     mockMvc

@@ -10,10 +10,13 @@ import io.github.adarko22.customeractivityanalytics.analytics.dto.AnalyticsBucke
 import io.github.adarko22.customeractivityanalytics.analytics.dto.AnalyticsTimeSeriesDto;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionTypeFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.crypto.CryptoActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivityRepository;
@@ -51,6 +54,8 @@ class AnalyticsServiceTest {
   private final TransactionTypeFilters noFilters =
       new TransactionTypeFilters(
           null, null, null, null, null, null, null, null, null, null, null, null);
+  private final TransactionCommonFilters noCommonFilters =
+      new TransactionCommonFilters(null, null, null, null, null, null);
 
   @BeforeEach
   void setUp() {
@@ -87,12 +92,8 @@ class AnalyticsServiceTest {
         analyticsService.findTimeSeries(
             customerId,
             ActivityType.CARD,
-            null,
-            now.minus(1, ChronoUnit.DAYS),
-            now,
-            null,
-            null,
-            null,
+            new TransactionCommonFilters(
+                null, now.minus(1, ChronoUnit.DAYS), now, null, null, null),
             noFilters,
             Granularity.DAY);
 
@@ -109,7 +110,11 @@ class AnalyticsServiceTest {
     assertThatThrownBy(
             () ->
                 analyticsService.findTimeSeries(
-                    customerId, null, null, now, now, null, null, null, noFilters, Granularity.DAY))
+                    customerId,
+                    null,
+                    new TransactionCommonFilters(null, now, now, null, null, null),
+                    noFilters,
+                    Granularity.DAY))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             ex ->
@@ -127,12 +132,7 @@ class AnalyticsServiceTest {
                 analyticsService.findTimeSeries(
                     customerId,
                     null,
-                    null,
-                    from,
-                    to,
-                    null,
-                    null,
-                    null,
+                    new TransactionCommonFilters(null, from, to, null, null, null),
                     noFilters,
                     Granularity.YEAR))
         .isInstanceOf(ResponseStatusException.class)
@@ -161,16 +161,7 @@ class AnalyticsServiceTest {
     assertThatThrownBy(
             () ->
                 analyticsService.findTimeSeries(
-                    customerId,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    noFilters,
-                    Granularity.DAY))
+                    customerId, null, noCommonFilters, noFilters, Granularity.DAY))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -182,7 +173,7 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+            customerId, null, noCommonFilters, noFilters, Granularity.DAY);
 
     assertThat(series.from()).isNotNull();
     assertThat(series.to()).isNotNull();
@@ -198,7 +189,7 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+            customerId, null, noCommonFilters, noFilters, Granularity.DAY);
 
     assertThat(series.to()).isEqualTo(latestActivity);
   }
@@ -212,7 +203,7 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+            customerId, null, noCommonFilters, noFilters, Granularity.DAY);
 
     assertThat(series.to()).isEqualTo(latestActivity);
     assertThat(series.from()).isEqualTo(Instant.parse("2026-02-01T00:00:00Z"));
@@ -227,7 +218,7 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, null, null, null, null, noFilters, Granularity.DAY);
+            customerId, null, noCommonFilters, noFilters, Granularity.DAY);
 
     assertThat(series.to()).isEqualTo(latestActivity);
     assertThat(series.from()).isEqualTo(Instant.parse("2026-02-28T00:00:00Z"));
@@ -240,7 +231,11 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, from, null, null, null, null, noFilters, Granularity.DAY);
+            customerId,
+            null,
+            new TransactionCommonFilters(null, from, null, null, null, null),
+            noFilters,
+            Granularity.DAY);
 
     assertThat(series.from()).isEqualTo(from);
     assertThat(series.to()).isEqualTo(Instant.parse("2026-09-03T00:00:00Z"));
@@ -254,7 +249,11 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, from, null, null, null, null, noFilters, Granularity.DAY);
+            customerId,
+            null,
+            new TransactionCommonFilters(null, from, null, null, null, null),
+            noFilters,
+            Granularity.DAY);
 
     assertThat(series.from()).isEqualTo(from);
     assertThat(series.to()).isEqualTo(todayStart);
@@ -267,7 +266,11 @@ class AnalyticsServiceTest {
 
     AnalyticsTimeSeriesDto series =
         analyticsService.findTimeSeries(
-            customerId, null, null, null, to, null, null, null, noFilters, Granularity.DAY);
+            customerId,
+            null,
+            new TransactionCommonFilters(null, null, to, null, null, null),
+            noFilters,
+            Granularity.DAY);
 
     assertThat(series.to()).isEqualTo(to);
     assertThat(series.from()).isEqualTo(Instant.parse("2026-08-03T00:00:00Z"));
@@ -282,12 +285,8 @@ class AnalyticsServiceTest {
         analyticsService.findTimeSeries(
             customerId,
             null,
-            null,
-            now.minus(5, ChronoUnit.DAYS),
-            now,
-            null,
-            null,
-            null,
+            new TransactionCommonFilters(
+                null, now.minus(5, ChronoUnit.DAYS), now, null, null, null),
             noFilters,
             Granularity.DAY);
 
@@ -310,12 +309,8 @@ class AnalyticsServiceTest {
         analyticsService.findTimeSeries(
             customerId,
             null,
-            null,
-            day.minus(1, ChronoUnit.DAYS),
-            day,
-            null,
-            null,
-            null,
+            new TransactionCommonFilters(
+                null, day.minus(1, ChronoUnit.DAYS), day, null, null, null),
             noFilters,
             Granularity.DAY);
 
@@ -328,18 +323,13 @@ class AnalyticsServiceTest {
 
   private CardActivity card(BigDecimal amount, String currency, Instant createdAt) {
     return new CardActivity(
-        UUID.randomUUID(),
-        customerId,
-        amount,
-        currency,
-        TransactionStatus.COMPLETED,
-        createdAt,
-        "****1234",
-        "DEBIT",
-        "Amazon",
-        "5732",
-        true,
-        "AUTH1",
-        null);
+        new TransactionCoreFields(
+            UUID.randomUUID(),
+            customerId,
+            amount,
+            currency,
+            TransactionStatus.COMPLETED,
+            createdAt),
+        new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null));
   }
 }

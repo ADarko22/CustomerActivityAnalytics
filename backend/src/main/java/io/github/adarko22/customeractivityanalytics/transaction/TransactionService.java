@@ -9,8 +9,6 @@ import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionD
 import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionMapper;
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.payment.PaymentActivitySpecifications;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +23,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Paginated, filterable, sortable overview and per-transaction detail across all activity types.
+ */
 @Service
 public class TransactionService {
 
@@ -64,12 +65,7 @@ public class TransactionService {
   public Page<TransactionDto> findOverview(
       UUID customerId,
       ActivityType activityType,
-      TransactionStatus status,
-      Instant from,
-      Instant to,
-      BigDecimal minAmount,
-      BigDecimal maxAmount,
-      String currency,
+      TransactionCommonFilters filters,
       TransactionTypeFilters typeFilters,
       Pageable pageable) {
     customerService.requireExists(customerId);
@@ -84,19 +80,25 @@ public class TransactionService {
     log.debug(
         "Transaction filters: status={}, from={}, to={}, minAmount={}, maxAmount={}, currency={},"
             + " typeFilters={}",
-        status,
-        from,
-        to,
-        minAmount,
-        maxAmount,
-        currency,
+        filters.status(),
+        filters.from(),
+        filters.to(),
+        filters.minAmount(),
+        filters.maxAmount(),
+        filters.currency(),
         typeFilters);
 
     if (activityType == null) {
       return transactionRepository
           .findAll(
               TransactionSpecifications.<Transaction>common(
-                  customerId, status, from, to, minAmount, maxAmount, currency),
+                  customerId,
+                  filters.status(),
+                  filters.from(),
+                  filters.to(),
+                  filters.minAmount(),
+                  filters.maxAmount(),
+                  filters.currency()),
               pageable)
           .map(TransactionMapper::toDto);
     }
@@ -107,12 +109,7 @@ public class TransactionService {
               .findAll(
                   CardActivitySpecifications.filter(
                       customerId,
-                      status,
-                      from,
-                      to,
-                      minAmount,
-                      maxAmount,
-                      currency,
+                      filters,
                       typeFilters.cardType(),
                       typeFilters.merchantName(),
                       typeFilters.mccCode(),
@@ -124,12 +121,7 @@ public class TransactionService {
               .findAll(
                   PaymentActivitySpecifications.filter(
                       customerId,
-                      status,
-                      from,
-                      to,
-                      minAmount,
-                      maxAmount,
-                      currency,
+                      filters,
                       typeFilters.paymentMethod(),
                       typeFilters.senderAccount(),
                       typeFilters.receiverAccount(),
@@ -141,12 +133,7 @@ public class TransactionService {
               .findAll(
                   CryptoActivitySpecifications.filter(
                       customerId,
-                      status,
-                      from,
-                      to,
-                      minAmount,
-                      maxAmount,
-                      currency,
+                      filters,
                       typeFilters.blockchain(),
                       typeFilters.walletAddressFrom(),
                       typeFilters.walletAddressTo(),

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.crypto.CryptoActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.dto.CardTransactionDto;
@@ -45,6 +46,8 @@ class TransactionServiceTest {
   private final TransactionTypeFilters noFilters =
       new TransactionTypeFilters(
           null, null, null, null, null, null, null, null, null, null, null, null);
+  private final TransactionCommonFilters noCommonFilters =
+      new TransactionCommonFilters(null, null, null, null, null, null);
 
   @BeforeEach
   void setUp() {
@@ -65,16 +68,7 @@ class TransactionServiceTest {
 
     Page<?> page =
         transactionService.findOverview(
-            customerId,
-            ActivityType.CARD,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            noFilters,
-            PageRequest.of(0, 10));
+            customerId, ActivityType.CARD, noCommonFilters, noFilters, PageRequest.of(0, 10));
 
     assertThat(page.getContent()).hasSize(1);
     assertThat(page.getContent().get(0)).isInstanceOf(CardTransactionDto.class);
@@ -87,12 +81,7 @@ class TransactionServiceTest {
                 transactionService.findOverview(
                     customerId,
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
+                    noCommonFilters,
                     noFilters,
                     PageRequest.of(0, 10, Sort.by("cardPan"))))
         .isInstanceOf(ResponseStatusException.class);
@@ -116,18 +105,13 @@ class TransactionServiceTest {
 
   private CardActivity card() {
     return new CardActivity(
-        UUID.randomUUID(),
-        customerId,
-        new BigDecimal("10.00"),
-        "EUR",
-        TransactionStatus.COMPLETED,
-        Instant.now(),
-        "****1234",
-        "DEBIT",
-        "Amazon",
-        "5732",
-        true,
-        "AUTH1",
-        null);
+        new TransactionCoreFields(
+            UUID.randomUUID(),
+            customerId,
+            new BigDecimal("10.00"),
+            "EUR",
+            TransactionStatus.COMPLETED,
+            Instant.now()),
+        new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null));
   }
 }

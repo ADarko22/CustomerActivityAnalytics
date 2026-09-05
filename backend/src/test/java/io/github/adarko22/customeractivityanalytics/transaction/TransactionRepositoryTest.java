@@ -6,6 +6,7 @@ import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationT
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -107,18 +108,8 @@ class TransactionRepositoryTest extends AbstractPostgresIntegrationTest {
       BigDecimal amount, String currency, TransactionStatus status, Instant createdAt) {
     cardActivityRepository.save(
         new CardActivity(
-            UUID.randomUUID(),
-            customerId,
-            amount,
-            currency,
-            status,
-            createdAt,
-            "****1234",
-            "DEBIT",
-            "Amazon",
-            "5732",
-            true,
-            "AUTH1",
-            null));
+            new TransactionCoreFields(
+                UUID.randomUUID(), customerId, amount, currency, status, createdAt),
+            new CardActivityDetails("****1234", "DEBIT", "Amazon", "5732", true, "AUTH1", null)));
   }
 }

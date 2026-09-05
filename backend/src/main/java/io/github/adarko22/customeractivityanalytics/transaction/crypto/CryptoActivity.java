@@ -1,15 +1,12 @@
 package io.github.adarko22.customeractivityanalytics.transaction.crypto;
 
 import io.github.adarko22.customeractivityanalytics.transaction.Transaction;
-import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "crypto_activity")
@@ -35,18 +32,19 @@ public class CryptoActivity extends Transaction {
   protected CryptoActivity() {}
 
   public CryptoActivity(
-      UUID transactionId,
-      UUID customerId,
-      BigDecimal amount,
-      String currency,
-      TransactionStatus status,
-      Instant createdAt,
+      TransactionCoreFields core,
       String blockchain,
       String walletAddressFrom,
       String walletAddressTo,
       String txHash,
       String exchangeName) {
-    super(transactionId, customerId, amount, currency, status, createdAt);
+    super(
+        core.transactionId(),
+        core.customerId(),
+        core.amount(),
+        core.currency(),
+        core.status(),
+        core.createdAt());
     this.blockchain = blockchain;
     this.walletAddressFrom = walletAddressFrom;
     this.walletAddressTo = walletAddressTo;

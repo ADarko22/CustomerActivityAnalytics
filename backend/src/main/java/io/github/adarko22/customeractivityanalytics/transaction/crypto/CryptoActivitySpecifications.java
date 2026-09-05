@@ -1,33 +1,36 @@
 package io.github.adarko22.customeractivityanalytics.transaction.crypto;
 
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCommonFilters;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionSpecifications;
-import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import jakarta.persistence.criteria.Predicate;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
+/**
+ * Query predicates for {@link CryptoActivity}: the shared transaction filters plus crypto-specific
+ * fields.
+ */
 public final class CryptoActivitySpecifications {
 
   private CryptoActivitySpecifications() {}
 
   public static Specification<CryptoActivity> filter(
       UUID customerId,
-      TransactionStatus status,
-      Instant from,
-      Instant to,
-      BigDecimal minAmount,
-      BigDecimal maxAmount,
-      String currency,
+      TransactionCommonFilters filters,
       String blockchain,
       String walletAddressFrom,
       String walletAddressTo,
       String exchangeName) {
     return TransactionSpecifications.<CryptoActivity>common(
-            customerId, status, from, to, minAmount, maxAmount, currency)
+            customerId,
+            filters.status(),
+            filters.from(),
+            filters.to(),
+            filters.minAmount(),
+            filters.maxAmount(),
+            filters.currency())
         .and(typeFilters(blockchain, walletAddressFrom, walletAddressTo, exchangeName));
   }
 

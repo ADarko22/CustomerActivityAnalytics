@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/** CRUD over {@code risk_rules}: reads for any operator, writes gated to the {@code ADMIN} role. */
 @RestController
 public class RiskRuleController {
 

@@ -18,6 +18,8 @@ tasks.build {
 // run task lives in `frontend/build.gradle.kts` (Postgres + backend + frontend),
 // where the node plugin and `concurrently` are already available.
 tasks.register("dev") {
+    group = "application"
+    description = "Delegates to :frontend:dev to run the full local stack from one terminal."
     dependsOn(":frontend:dev")
 }
 

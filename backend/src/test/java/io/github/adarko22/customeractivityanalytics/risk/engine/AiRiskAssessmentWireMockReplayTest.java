@@ -19,8 +19,10 @@ import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRule;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRuleRepository;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RuleScope;
+import io.github.adarko22.customeractivityanalytics.transaction.TransactionCoreFields;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
+import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityDetails;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionDto;
 import io.github.adarko22.customeractivityanalytics.transaction.dto.TransactionMapper;
@@ -77,19 +79,15 @@ class AiRiskAssessmentWireMockReplayTest extends AbstractPostgresIntegrationTest
       transactionId = UUID.randomUUID();
       cardActivityRepository.save(
           new CardActivity(
-              transactionId,
-              customerId,
-              new BigDecimal("6000.00"),
-              "EUR",
-              TransactionStatus.COMPLETED,
-              Instant.now(),
-              "****1234",
-              "DEBIT",
-              "Amazon",
-              "5732",
-              false,
-              "AUTH1",
-              null));
+              new TransactionCoreFields(
+                  transactionId,
+                  customerId,
+                  new BigDecimal("6000.00"),
+                  "EUR",
+                  TransactionStatus.COMPLETED,
+                  Instant.now()),
+              new CardActivityDetails(
+                  "****1234", "DEBIT", "Amazon", "5732", false, "AUTH1", null)));
       ruleId = UUID.randomUUID();
       riskRuleRepository.save(
           new RiskRule(

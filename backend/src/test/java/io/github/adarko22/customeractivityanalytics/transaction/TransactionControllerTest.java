@@ -56,8 +56,7 @@ class TransactionControllerTest {
             true,
             "AUTH1",
             null);
-    when(transactionService.findOverview(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(transactionService.findOverview(eq(customerId), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(card)));
 
     mockMvc
@@ -84,8 +83,7 @@ class TransactionControllerTest {
             "SENDER",
             "RECEIVER",
             "US");
-    when(transactionService.findOverview(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(transactionService.findOverview(eq(customerId), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(payment)));
 
     mockMvc
@@ -113,8 +111,7 @@ class TransactionControllerTest {
             "wallet-to",
             "tx-hash",
             "Kraken");
-    when(transactionService.findOverview(
-            eq(customerId), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+    when(transactionService.findOverview(eq(customerId), any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(List.of(crypto)));
 
     mockMvc
