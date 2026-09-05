@@ -37,7 +37,6 @@ public class RiskAssessmentPersistenceService {
             assessmentId,
             transactionId,
             triggeredAt,
-            scored.level(),
             scored.totalScore(),
             findings,
             recommendations);

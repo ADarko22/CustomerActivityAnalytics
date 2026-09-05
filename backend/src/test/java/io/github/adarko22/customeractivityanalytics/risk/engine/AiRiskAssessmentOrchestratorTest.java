@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.adarko22.customeractivityanalytics.risk.ai.AiProviderProperties;
+import io.github.adarko22.customeractivityanalytics.risk.ai.AssembledPrompt;
 import io.github.adarko22.customeractivityanalytics.risk.ai.ModelAssessmentResult;
 import io.github.adarko22.customeractivityanalytics.risk.ai.RiskAssessmentAiClient;
 import io.github.adarko22.customeractivityanalytics.risk.ai.RuleMatch;
@@ -18,7 +19,6 @@ import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentEve
 import io.github.adarko22.customeractivityanalytics.risk.dto.AssessmentStage;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentPersistenceService;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessment;
-import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskLevel;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRule;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RuleScope;
 import io.github.adarko22.customeractivityanalytics.transaction.ActivityType;
@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,12 +45,15 @@ class AiRiskAssessmentOrchestratorTest {
   @Mock private RiskRuleRetrievalService riskRuleRetrievalService;
   @Mock private AssessmentHistoryRetrievalService assessmentHistoryRetrievalService;
   @Mock private PromptContextMapper promptContextMapper;
+  @Mock private RiskAssessmentPromptAssembler promptAssembler;
+  @Mock private PiiGuardrailService guardrailService;
   @Mock private RiskAssessmentAiClient aiClient;
   @Mock private RiskAssessmentPersistenceService persistenceService;
   @Mock private SseEmitter emitter;
 
   private final UUID transactionId = UUID.randomUUID();
   private final UUID ruleId = UUID.randomUUID();
+  private static final AssembledPrompt PROMPT = new AssembledPrompt("system", "user prompt");
 
   private RiskAssessmentProperties properties;
   private AiRiskAssessmentOrchestrator orchestrator;
@@ -57,16 +61,21 @@ class AiRiskAssessmentOrchestratorTest {
   @BeforeEach
   void setUp() {
     properties = properties(Duration.ofSeconds(2), Duration.ofSeconds(3));
-    orchestrator =
-        new AiRiskAssessmentOrchestrator(
-            riskRuleRetrievalService,
-            assessmentHistoryRetrievalService,
-            promptContextMapper,
-            aiClient,
-            new RiskScoringService(properties),
-            persistenceService,
-            properties,
-            new AiProviderProperties("openai", false));
+    orchestrator = newOrchestrator(properties);
+  }
+
+  private AiRiskAssessmentOrchestrator newOrchestrator(RiskAssessmentProperties props) {
+    return new AiRiskAssessmentOrchestrator(
+        riskRuleRetrievalService,
+        assessmentHistoryRetrievalService,
+        promptContextMapper,
+        promptAssembler,
+        guardrailService,
+        aiClient,
+        new RiskScoringService(props),
+        persistenceService,
+        props,
+        new AiProviderProperties("openai", false));
   }
 
   private static RiskAssessmentProperties properties(
@@ -97,15 +106,21 @@ class AiRiskAssessmentOrchestratorTest {
         null);
   }
 
-  private void stubHappyPath() {
+  private void stubUpToGuardrail() {
     RiskRule rule =
         new RiskRule(ruleId, "Rule", RuleScope.ALL, "condition", new BigDecimal("20.00"));
     when(promptContextMapper.map(any())).thenReturn("context");
     when(riskRuleRetrievalService.findApplicable(ActivityType.CARD)).thenReturn(List.of(rule));
     when(assessmentHistoryRetrievalService.recentFor(eq(transactionId), anyInt()))
         .thenReturn(List.of());
+    when(promptAssembler.assemble(eq("context"), any(), any())).thenReturn(PROMPT);
+  }
+
+  private void stubHappyPath() {
+    stubUpToGuardrail();
+    when(guardrailService.scan(PROMPT.user())).thenReturn(Optional.empty());
     when(aiClient.modelName()).thenReturn("gpt-4o-mini");
-    when(aiClient.assess(eq("context"), any(), any()))
+    when(aiClient.assess(PROMPT))
         .thenReturn(
             new ModelAssessmentResult(
                 List.of(new RuleMatch(ruleId, new BigDecimal("0.50"))),
@@ -116,7 +131,6 @@ class AiRiskAssessmentOrchestratorTest {
             UUID.randomUUID(),
             transactionId,
             Instant.now(),
-            RiskLevel.LOW,
             new BigDecimal("10.00"),
             "findings",
             "recommendations");
@@ -132,7 +146,7 @@ class AiRiskAssessmentOrchestratorTest {
 
     ArgumentCaptor<AiRiskAssessmentEventDto> captor =
         ArgumentCaptor.forClass(AiRiskAssessmentEventDto.class);
-    verify(emitter, times(5)).send(captor.capture());
+    verify(emitter, times(6)).send(captor.capture());
     List<AssessmentStage> stages =
         captor.getAllValues().stream().map(AiRiskAssessmentEventDto::stage).toList();
     assertThat(stages)
@@ -140,9 +154,10 @@ class AiRiskAssessmentOrchestratorTest {
             AssessmentStage.PROMPT_BUILDING,
             AssessmentStage.RULE_RETRIEVAL,
             AssessmentStage.HISTORY_RETRIEVAL,
+            AssessmentStage.GUARDRAIL_CHECK,
             AssessmentStage.MODEL_CALL,
             AssessmentStage.COMPLETE);
-    assertThat(captor.getAllValues().get(4).result()).isNotNull();
+    assertThat(captor.getAllValues().get(5).result()).isNotNull();
     verify(emitter).complete();
     verify(persistenceService)
         .save(eq(transactionId), any(), eq("findings"), eq("recommendations"));
@@ -162,10 +177,9 @@ class AiRiskAssessmentOrchestratorTest {
 
   @Test
   void modelCallTimeoutEmitsFailedWithoutPersisting() throws IOException {
-    when(promptContextMapper.map(any())).thenReturn("context");
-    when(riskRuleRetrievalService.findApplicable(any())).thenReturn(List.of());
-    when(assessmentHistoryRetrievalService.recentFor(any(), anyInt())).thenReturn(List.of());
-    when(aiClient.assess(any(), any(), any()))
+    stubUpToGuardrail();
+    when(guardrailService.scan(PROMPT.user())).thenReturn(Optional.empty());
+    when(aiClient.assess(PROMPT))
         .thenAnswer(
             invocation -> {
               Thread.sleep(300);
@@ -173,40 +187,56 @@ class AiRiskAssessmentOrchestratorTest {
             });
     RiskAssessmentProperties shortTimeout =
         properties(Duration.ofMillis(50), Duration.ofMillis(500));
-    AiRiskAssessmentOrchestrator timeoutOrchestrator =
-        new AiRiskAssessmentOrchestrator(
-            riskRuleRetrievalService,
-            assessmentHistoryRetrievalService,
-            promptContextMapper,
-            aiClient,
-            new RiskScoringService(shortTimeout),
-            persistenceService,
-            shortTimeout,
-            new AiProviderProperties("openai", false));
+    AiRiskAssessmentOrchestrator timeoutOrchestrator = newOrchestrator(shortTimeout);
 
     timeoutOrchestrator.run(transactionDto(), emitter);
 
     verify(persistenceService, never()).save(any(), any(), any(), any());
     ArgumentCaptor<AiRiskAssessmentEventDto> captor =
         ArgumentCaptor.forClass(AiRiskAssessmentEventDto.class);
-    verify(emitter, times(5)).send(captor.capture());
-    assertThat(captor.getAllValues().get(4).stage()).isEqualTo(AssessmentStage.FAILED);
+    verify(emitter, times(6)).send(captor.capture());
+    assertThat(captor.getAllValues().get(5).stage()).isEqualTo(AssessmentStage.FAILED);
     verify(emitter).complete();
   }
 
   @Test
   void modelCallExceptionEmitsFailedWithoutPersisting() throws IOException {
-    when(promptContextMapper.map(any())).thenReturn("context");
-    when(riskRuleRetrievalService.findApplicable(any())).thenReturn(List.of());
-    when(assessmentHistoryRetrievalService.recentFor(any(), anyInt())).thenReturn(List.of());
-    when(aiClient.assess(any(), any(), any())).thenThrow(new RuntimeException("boom"));
+    stubUpToGuardrail();
+    when(guardrailService.scan(PROMPT.user())).thenReturn(Optional.empty());
+    when(aiClient.assess(PROMPT)).thenThrow(new RuntimeException("boom"));
 
     orchestrator.run(transactionDto(), emitter);
 
     verify(persistenceService, never()).save(any(), any(), any(), any());
     ArgumentCaptor<AiRiskAssessmentEventDto> captor =
         ArgumentCaptor.forClass(AiRiskAssessmentEventDto.class);
-    verify(emitter, times(5)).send(captor.capture());
-    assertThat(captor.getAllValues().get(4).stage()).isEqualTo(AssessmentStage.FAILED);
+    verify(emitter, times(6)).send(captor.capture());
+    assertThat(captor.getAllValues().get(5).stage()).isEqualTo(AssessmentStage.FAILED);
+  }
+
+  @Test
+  void guardrailMatchIsAdvisoryOnlyAndDoesNotBlockTheAssessment() throws IOException {
+    stubHappyPath();
+    when(guardrailService.scan(PROMPT.user())).thenReturn(Optional.of("CARD_PAN"));
+
+    orchestrator.run(transactionDto(), emitter);
+
+    verify(aiClient).assess(PROMPT);
+    verify(persistenceService)
+        .save(eq(transactionId), any(), eq("findings"), eq("recommendations"));
+    ArgumentCaptor<AiRiskAssessmentEventDto> captor =
+        ArgumentCaptor.forClass(AiRiskAssessmentEventDto.class);
+    verify(emitter, times(6)).send(captor.capture());
+    List<AssessmentStage> stages =
+        captor.getAllValues().stream().map(AiRiskAssessmentEventDto::stage).toList();
+    assertThat(stages)
+        .containsExactly(
+            AssessmentStage.PROMPT_BUILDING,
+            AssessmentStage.RULE_RETRIEVAL,
+            AssessmentStage.HISTORY_RETRIEVAL,
+            AssessmentStage.GUARDRAIL_CHECK,
+            AssessmentStage.MODEL_CALL,
+            AssessmentStage.COMPLETE);
+    verify(emitter).complete();
   }
 }

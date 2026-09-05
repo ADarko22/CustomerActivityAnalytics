@@ -72,7 +72,10 @@ describe('RiskAssessmentTriggerComponent', () => {
         riskScore: 85,
         findings: 'Elevated risk detected',
         recommendations: 'Escalate for manual review',
-        ruleContributions: [],
+        ruleContributions: [
+          { ruleId: 'r1', ruleName: 'High-value transaction', scoreContribution: 25 },
+          { ruleId: 'r2', ruleName: 'Card-not-present', scoreContribution: 15 },
+        ],
       },
     });
     fixture.detectChanges();
@@ -82,6 +85,10 @@ describe('RiskAssessmentTriggerComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('HIGH');
     expect(text).toContain('Elevated risk detected');
+    expect(text).toContain('High-value transaction');
+    expect(text).toContain('+25');
+    expect(text).toContain('Card-not-present');
+    expect(text).toContain('+15');
     expect(fixture.debugElement.query(By.css('.stage-list'))).toBeFalsy();
   });
 

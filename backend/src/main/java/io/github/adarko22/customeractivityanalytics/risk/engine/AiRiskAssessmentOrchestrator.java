@@ -1,6 +1,7 @@
 package io.github.adarko22.customeractivityanalytics.risk.engine;
 
 import io.github.adarko22.customeractivityanalytics.risk.ai.AiProviderProperties;
+import io.github.adarko22.customeractivityanalytics.risk.ai.AssembledPrompt;
 import io.github.adarko22.customeractivityanalytics.risk.ai.ModelAssessmentResult;
 import io.github.adarko22.customeractivityanalytics.risk.ai.RiskAssessmentAiClient;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
@@ -42,6 +43,8 @@ public class AiRiskAssessmentOrchestrator {
   private final RiskRuleRetrievalService riskRuleRetrievalService;
   private final AssessmentHistoryRetrievalService assessmentHistoryRetrievalService;
   private final PromptContextMapper promptContextMapper;
+  private final RiskAssessmentPromptAssembler promptAssembler;
+  private final PiiGuardrailService guardrailService;
   private final RiskAssessmentAiClient aiClient;
   private final RiskScoringService riskScoringService;
   private final RiskAssessmentPersistenceService persistenceService;
@@ -52,6 +55,8 @@ public class AiRiskAssessmentOrchestrator {
       RiskRuleRetrievalService riskRuleRetrievalService,
       AssessmentHistoryRetrievalService assessmentHistoryRetrievalService,
       PromptContextMapper promptContextMapper,
+      RiskAssessmentPromptAssembler promptAssembler,
+      PiiGuardrailService guardrailService,
       RiskAssessmentAiClient aiClient,
       RiskScoringService riskScoringService,
       RiskAssessmentPersistenceService persistenceService,
@@ -60,6 +65,8 @@ public class AiRiskAssessmentOrchestrator {
     this.riskRuleRetrievalService = riskRuleRetrievalService;
     this.assessmentHistoryRetrievalService = assessmentHistoryRetrievalService;
     this.promptContextMapper = promptContextMapper;
+    this.promptAssembler = promptAssembler;
+    this.guardrailService = guardrailService;
     this.aiClient = aiClient;
     this.riskScoringService = riskScoringService;
     this.persistenceService = persistenceService;
@@ -80,9 +87,22 @@ public class AiRiskAssessmentOrchestrator {
         assessmentHistoryRetrievalService.recentFor(
             transaction.transactionId(), riskProperties.historyContextSize());
 
+    AssembledPrompt prompt = promptAssembler.assemble(context, rules, history);
+
+    emitSafely(emitter, AiRiskAssessmentEventDto.progress(AssessmentStage.GUARDRAIL_CHECK));
+    guardrailService
+        .scan(prompt.user())
+        .ifPresent(
+            pattern ->
+                log.warn(
+                    "AI risk assessment prompt matched a PII guardrail pattern (advisory only,"
+                        + " assessment proceeds): transactionId={}, pattern={}",
+                    transaction.transactionId(),
+                    pattern));
+
     emitSafely(emitter, AiRiskAssessmentEventDto.progress(AssessmentStage.MODEL_CALL));
     try {
-      ModelAssessmentResult result = callWithTimeout(context, rules, history);
+      ModelAssessmentResult result = callWithTimeout(prompt);
 
       Map<UUID, RiskRule> rulesById =
           rules.stream().collect(Collectors.toMap(RiskRule::getRuleId, r -> r));
@@ -110,7 +130,9 @@ public class AiRiskAssessmentOrchestrator {
           transaction.transactionId(),
           result.ruleMatches());
 
-      emitSafely(emitter, AiRiskAssessmentEventDto.complete(toDto(persisted, scored, rulesById)));
+      emitSafely(
+          emitter,
+          AiRiskAssessmentEventDto.complete(toDto(persisted, scored, rulesById, riskProperties)));
       emitter.complete();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -124,17 +146,17 @@ public class AiRiskAssessmentOrchestrator {
     }
   }
 
-  private ModelAssessmentResult callWithTimeout(
-      String context, List<RiskRule> rules, List<RiskFinalAssessment> history)
+  private ModelAssessmentResult callWithTimeout(AssembledPrompt prompt)
       throws InterruptedException, ExecutionException, TimeoutException {
-    return CompletableFuture.supplyAsync(() -> aiClient.assess(context, rules, history))
+    return CompletableFuture.supplyAsync(() -> aiClient.assess(prompt))
         .get(riskProperties.assessmentTimeout().toMillis(), TimeUnit.MILLISECONDS);
   }
 
   private static AiRiskAssessmentDto toDto(
       RiskFinalAssessment persisted,
       RiskScoringService.ScoredAssessment scored,
-      Map<UUID, RiskRule> rulesById) {
+      Map<UUID, RiskRule> rulesById,
+      RiskAssessmentProperties riskProperties) {
     List<RuleContributionDto> contributions =
         scored.retained().stream()
             .map(
@@ -148,7 +170,7 @@ public class AiRiskAssessmentOrchestrator {
         persisted.getAssessmentId(),
         persisted.getTransactionId(),
         persisted.getTriggeredAt(),
-        persisted.getRiskLevel(),
+        riskProperties.levelFor(persisted.getRiskScore()),
         persisted.getRiskScore(),
         persisted.getFindings(),
         persisted.getRecommendations(),

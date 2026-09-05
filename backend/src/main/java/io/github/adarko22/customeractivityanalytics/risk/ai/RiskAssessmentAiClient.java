@@ -1,9 +1,5 @@
 package io.github.adarko22.customeractivityanalytics.risk.ai;
 
-import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessment;
-import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskRule;
-import java.util.List;
-
 /**
  * Port to the configured AI provider. {@link OpenAiRiskAssessmentAiClient} and {@link
  * AnthropicRiskAssessmentAiClient} are the two implementations, each active only when {@code
@@ -15,8 +11,7 @@ public interface RiskAssessmentAiClient {
   /** Bumped whenever a prompt template's meaning changes — attached to logs for traceability. */
   String PROMPT_VERSION = "v1";
 
-  ModelAssessmentResult assess(
-      String transactionContext, List<RiskRule> candidateRules, List<RiskFinalAssessment> history);
+  ModelAssessmentResult assess(AssembledPrompt prompt);
 
   /** The active model name, for observability — sourced from this provider's own configuration. */
   String modelName();

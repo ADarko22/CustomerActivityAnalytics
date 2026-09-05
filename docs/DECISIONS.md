@@ -294,3 +294,25 @@ Format per entry: **Decision · Context · Consequence**. Status one of `Accepte
   next read — the intended behavior, not a defect. `docs/specs/PROJECT_SPECIFICATION.md`'s
   `risk_final_assessments` table is updated to mark `risk_level` as derived, not stored. Introduced in Phase 5
   EXT_2 (`docs/development/PHASE_5_EXT_2.md`).
+
+## D24 — PII guardrail is advisory (logs, never blocks) · Supersedes part of PHASE_5_EXT_2's original design
+
+- **Decision:** `PiiGuardrailService`'s scan result never aborts an AI risk assessment. A pattern match logs a
+  `WARN` naming the violated pattern (never the matched value) and the pipeline proceeds to the model call and
+  persistence exactly as it would on a clean prompt.
+- **Context:** `PHASE_5_EXT_2.md` originally shipped this guardrail as a hard block (`FAILED`, no persistence, no
+  model call) on a match. In manual verification against the seeded demo data, this blocked every assessment for
+  `transactionId=c0000000-0000-0000-0000-000000000001`: the `CARD_PAN` regex's optional `-` separator let it
+  bridge across the UUID's hyphen-delimited hex groups, matching a 16-digit span across three groups of this
+  mostly-zero demo ID — a required, non-PII structural field `PromptContextMapper` always includes. The phase's
+  own "verified no false positive" analysis had only checked a single UUID hex group in isolation, missing that
+  the regex can span across group boundaries. Building a precise, blocking-capable PAN/IBAN detector (Luhn
+  validation, boundary-aware exclusions, etc.) was judged unnecessary complexity for a second line of defense
+  behind an allow-list (`PromptContextMapper`, Phase 4) that already keeps real PII out of the prompt in the
+  common case — the user's explicit direction was to keep the guardrail simple and treat it as a prompt-quality
+  guideline, not a hard gate, deferring precise blocking to a future improvement if a real free-text PII surface
+  is ever added.
+- **Consequence:** `AiRiskAssessmentOrchestrator`'s `GUARDRAIL_CHECK` stage still runs and still emits its SSE
+  progress token, but a match's only effect is the `WARN` log line — useful as a live signal that
+  `PromptContextMapper`'s allow-list may need review, not as a runtime safety gate. Amended in Phase 5 EXT_2
+  post-completion (`docs/development/PHASE_5_EXT_2.md`, Risks/Open Questions).

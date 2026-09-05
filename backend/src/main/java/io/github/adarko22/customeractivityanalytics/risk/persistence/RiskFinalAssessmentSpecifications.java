@@ -1,5 +1,6 @@
 package io.github.adarko22.customeractivityanalytics.risk.persistence;
 
+import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
 import io.github.adarko22.customeractivityanalytics.transaction.Transaction;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -30,7 +31,8 @@ public final class RiskFinalAssessmentSpecifications {
       Instant from,
       Instant to,
       BigDecimal minScore,
-      BigDecimal maxScore) {
+      BigDecimal maxScore,
+      RiskAssessmentProperties riskProperties) {
     return (root, query, cb) -> {
       List<Predicate> predicates = new ArrayList<>();
       predicates.add(
@@ -39,7 +41,15 @@ public final class RiskFinalAssessmentSpecifications {
         predicates.add(cb.equal(root.get("transactionId"), transactionId));
       }
       if (riskLevel != null) {
-        predicates.add(cb.equal(root.get("riskLevel"), riskLevel));
+        RiskAssessmentProperties.LevelThresholds t = riskProperties.levelThresholds();
+        switch (riskLevel) {
+          case LOW -> predicates.add(cb.lessThanOrEqualTo(root.get("riskScore"), t.lowMax()));
+          case MEDIUM -> {
+            predicates.add(cb.greaterThan(root.get("riskScore"), t.lowMax()));
+            predicates.add(cb.lessThanOrEqualTo(root.get("riskScore"), t.mediumMax()));
+          }
+          case HIGH -> predicates.add(cb.greaterThan(root.get("riskScore"), t.mediumMax()));
+        }
       }
       if (from != null) {
         predicates.add(cb.greaterThanOrEqualTo(root.get("triggeredAt"), from));

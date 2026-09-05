@@ -121,7 +121,25 @@ Gradle multi-module project:
   Assessment" click silently 401'd with a generic "Connection lost" frontend error. Fixed by switching that
   stream to `HttpClient` (`reportProgress`/`observe: 'events'`, parsing `DownloadProgress`'s cumulative
   `partialText` as SSE framing) so it flows through the same `DefaultOAuthInterceptor` as every other call, rather
-  than a token-in-URL workaround.
+  than a token-in-URL workaround. Phase 5 EXT_2 adds a click-to-expand row on the risk-assessment history table
+  (the same `multiTemplateDataRows` inline-expand pattern as the transaction table, D14) revealing the fired risk
+  rules and each one's `scoreContribution`, sorted descending, via a new shared `RuleContributionsListComponent`
+  also used unconditionally in the live "Run AI Risk Assessment" result panel for a consistent view of a
+  freshly-completed vs. historical assessment. A new shared `RiskLevelBadgeComponent` replaces the
+  previously-duplicated risk-level chip styling in both places, recoloring LOW/MEDIUM/HIGH to
+  light-yellow/light-orange/light-red. Phase 5 EXT_2 adds a runtime PII guardrail: immediately before every model call,
+  the fully-assembled user prompt is scanned against a config-driven set of regex patterns
+  (`app.risk.guardrail.patterns` — card PAN, IBAN, email, crypto wallet address; fail-fast validated at startup) as
+  a second line of defense behind `PromptContextMapper`'s build-time allow-list. It is advisory, not blocking
+  (`docs/DECISIONS.md` D24): a match logs only the violated pattern's name at `WARN`; the model call and
+  persistence proceed exactly as on a clean prompt — a hard block was tried first but reverted after it false-
+  positived on a seeded transaction ID (a structural UUID, not PII) that happened to contain a long,
+  hyphen-bridged digit run. The SSE stream gains a `GUARDRAIL_CHECK` stage between `HISTORY_RETRIEVAL` and
+  `MODEL_CALL`. `risk_level` is no
+  longer a persisted column (`docs/DECISIONS.md` D23) — every read path (SSE completion, history list, the RAG
+  history-context block, and the history endpoint's `riskLevel` filter) now derives it on demand from the
+  persisted `risk_score` via the existing configurable thresholds, so a `app.risk.level-thresholds` change is
+  reflected retroactively across all history rather than frozen at insert time.
 - `local-environment` — Docker Compose: PostgreSQL, WireMock serving canned AI responses for the offline demo (see
   `local-environment/wiremock/README.md` for the record-mode toggle), and (since Phase 5) Keycloak, provisioned
   declaratively from `local-environment/keycloak/realm-export.json` (`--import-realm`) — see
@@ -154,6 +172,14 @@ Durable architectural decisions — including every choice that goes beyond the 
 - Analytics aggregation (Phase 3) is computed in memory over an unpaged, already-filtered row fetch — no DB-side
   `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
   [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.
+- The AI input guardrail (Phase 5 EXT_2) is a config-driven regex safety net for PII-shaped content (card PAN,
+  IBAN, email, crypto wallet address), a second line of defense behind the build-time `PromptContextMapper`
+  allow-list — not a general-purpose NER/PII-detection model, and advisory (`WARN`-logging) rather than blocking
+  (`docs/DECISIONS.md` D24), since its broad regexes can false-positive against non-PII structural identifiers.
+  There is no free-text user input anywhere near the AI risk-assessment flow today (assessments are triggered by
+  a button click on a `transactionId`), so a
+  scope/intent classifier for "out of scope querying" was deliberately not built; revisit if a free-text
+  AI-facing feature is ever added.
 
 ## Implementation Journey
 

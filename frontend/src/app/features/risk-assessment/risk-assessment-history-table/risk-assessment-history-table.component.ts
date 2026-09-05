@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Component, Input, OnChanges, SimpleChanges, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -20,6 +19,8 @@ import {
   AiRiskAssessmentFilter,
 } from '../../../core/models/ai-risk-assessment.model';
 import { AiRiskAssessmentService } from '../../../core/services/ai-risk-assessment.service';
+import { RiskLevelBadgeComponent } from '../risk-level-badge/risk-level-badge.component';
+import { RuleContributionsListComponent } from '../rule-contributions-list/rule-contributions-list.component';
 import { HISTORY_COLUMNS, HistoryColumnDef } from './risk-assessment-history-table.columns';
 
 const DEFAULT_SORT = 'triggeredAt,desc';
@@ -40,9 +41,10 @@ const FILTER_DEBOUNCE_MS = 300;
     MatDatepickerModule,
     MatMenuModule,
     MatButtonModule,
-    MatChipsModule,
     MatTooltipModule,
     FaIconComponent,
+    RiskLevelBadgeComponent,
+    RuleContributionsListComponent,
   ],
   templateUrl: './risk-assessment-history-table.component.html',
   styleUrl: './risk-assessment-history-table.component.scss',
@@ -68,6 +70,7 @@ export class RiskAssessmentHistoryTableComponent implements OnChanges {
 
   readonly assessments = signal<AiRiskAssessment[]>([]);
   readonly totalElements = signal(0);
+  readonly expandedAssessmentId = signal<string | null>(null);
 
   constructor() {
     this.filterChange$
@@ -83,8 +86,15 @@ export class RiskAssessmentHistoryTableComponent implements OnChanges {
       this.filters.set({});
       this.fromDateFilter.set(null);
       this.toDateFilter.set(null);
+      this.expandedAssessmentId.set(null);
       this.load();
     }
+  }
+
+  toggleExpand(row: AiRiskAssessment): void {
+    this.expandedAssessmentId.set(
+      this.expandedAssessmentId() === row.assessmentId ? null : row.assessmentId,
+    );
   }
 
   /** Invoked by the parent trigger component when a new assessment completes. */

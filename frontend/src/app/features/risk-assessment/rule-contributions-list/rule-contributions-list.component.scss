@@ -1,0 +1,23 @@
+.rule-contributions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rule-contributions-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.rule-score {
+  font-weight: 500;
+}
+
+.empty-state {
+  color: rgba(0, 0, 0, 0.6);
+  margin: 0;
+}

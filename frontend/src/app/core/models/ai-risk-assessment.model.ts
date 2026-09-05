@@ -1,5 +1,11 @@
 export type AssessmentStage =
-  'PROMPT_BUILDING' | 'RULE_RETRIEVAL' | 'HISTORY_RETRIEVAL' | 'MODEL_CALL' | 'COMPLETE' | 'FAILED';
+  | 'PROMPT_BUILDING'
+  | 'RULE_RETRIEVAL'
+  | 'HISTORY_RETRIEVAL'
+  | 'GUARDRAIL_CHECK'
+  | 'MODEL_CALL'
+  | 'COMPLETE'
+  | 'FAILED';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 

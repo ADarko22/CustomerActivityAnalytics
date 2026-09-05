@@ -3,6 +3,7 @@ package io.github.adarko22.customeractivityanalytics.risk.api;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerService;
 import io.github.adarko22.customeractivityanalytics.risk.dto.AiRiskAssessmentDto;
 import io.github.adarko22.customeractivityanalytics.risk.dto.RuleContributionDto;
+import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskAssessmentLineItemRepository;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessment;
 import io.github.adarko22.customeractivityanalytics.risk.persistence.RiskFinalAssessmentRepository;
@@ -32,16 +33,19 @@ public class AiRiskAssessmentHistoryService {
   private final TransactionService transactionService;
   private final RiskFinalAssessmentRepository riskFinalAssessmentRepository;
   private final RiskAssessmentLineItemRepository riskAssessmentLineItemRepository;
+  private final RiskAssessmentProperties riskProperties;
 
   public AiRiskAssessmentHistoryService(
       CustomerService customerService,
       TransactionService transactionService,
       RiskFinalAssessmentRepository riskFinalAssessmentRepository,
-      RiskAssessmentLineItemRepository riskAssessmentLineItemRepository) {
+      RiskAssessmentLineItemRepository riskAssessmentLineItemRepository,
+      RiskAssessmentProperties riskProperties) {
     this.customerService = customerService;
     this.transactionService = transactionService;
     this.riskFinalAssessmentRepository = riskFinalAssessmentRepository;
     this.riskAssessmentLineItemRepository = riskAssessmentLineItemRepository;
+    this.riskProperties = riskProperties;
   }
 
   public Page<AiRiskAssessmentDto> findHistory(
@@ -71,7 +75,7 @@ public class AiRiskAssessmentHistoryService {
     Page<RiskFinalAssessment> page =
         riskFinalAssessmentRepository.findAll(
             RiskFinalAssessmentSpecifications.filter(
-                customerId, transactionId, riskLevel, from, to, minScore, maxScore),
+                customerId, transactionId, riskLevel, from, to, minScore, maxScore, riskProperties),
             pageable);
 
     Map<UUID, List<RuleContributionDto>> contributionsByAssessment = contributionsFor(page);
@@ -82,7 +86,7 @@ public class AiRiskAssessmentHistoryService {
                 assessment.getAssessmentId(),
                 assessment.getTransactionId(),
                 assessment.getTriggeredAt(),
-                assessment.getRiskLevel(),
+                riskProperties.levelFor(assessment.getRiskScore()),
                 assessment.getRiskScore(),
                 assessment.getFindings(),
                 assessment.getRecommendations(),

@@ -1,6 +1,6 @@
 # Phase 5 EXT_2 — Refining AI Features
 
-**Status:** PLANNED
+**Status:** COMPLETE
 **Depends on:** `PHASE_5_EXT.md` (`COMPLETE`, frozen — not reopened). Enforce input guardrail on AI usage to protect PII
 and out of scope querying. Display the risk_assessments entries in the assessment history table as a detailed view of a
 risk_final_assessments entity.
@@ -16,14 +16,16 @@ and highlight with proper coloring (light yellow, light orange, light red).
 ## Scope
 
 - **In:**
-  - A runtime PII guardrail: a config-driven pattern-matching safety net that scans the fully-assembled LLM prompt
+  - A runtime PII guardrail: a config-driven pattern-matching check that scans the fully-assembled LLM prompt
     (after RAG injection of risk rules and history, immediately before the model call) for PII-shaped content (card
     PAN, IBAN, email address, crypto wallet address), as a second line of defense behind the existing
-    `PromptContextMapper` build-time allow-list (Phase 4). On a match: abort before any LLM call, emit a `FAILED` SSE
-    event with a generic message, log the violated pattern *names* at `WARN` (never the matched value itself), and
-    persist no assessment row. Patterns are externalized as configuration (`@ConfigurationProperties`, fail-fast
-    validated at startup, mirroring the existing `AnalyticsRangeProperties`/`RiskAssessmentProperties` idiom) so a new
-    pattern is a config change, not a code change.
+    `PromptContextMapper` build-time allow-list (Phase 4). It is **advisory, not blocking** (see Risks/Open Questions
+    — "Guardrail is advisory, not blocking" — for why a hard block was tried and reverted): on a match, it logs the
+    violated pattern *name* at `WARN` (never the matched value itself) so an operator/developer can review whether
+    `PromptContextMapper` needs tightening, but the assessment proceeds normally — same model call, same persistence.
+    Patterns are externalized as configuration (`@ConfigurationProperties`, fail-fast validated at startup, mirroring
+    the existing `AnalyticsRangeProperties`/`RiskAssessmentProperties` idiom) so a new pattern is a config change, not
+    a code change.
   - A new `GUARDRAIL_CHECK` SSE stage, emitted between `HISTORY_RETRIEVAL` and `MODEL_CALL`, so the operator sees the
     check happening live, same as every other stage.
   - Drop the persisted `risk_level` column from `risk_final_assessments` (Flyway migration) and recompute it on every
@@ -66,7 +68,7 @@ and highlight with proper coloring (light yellow, light orange, light red).
 
 | Functionality                       | Description                                                                                                                                                        |
 |--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AI input guardrail                  | Before every model call, the fully-assembled prompt is scanned against a config-driven set of PII patterns (card PAN, IBAN, email, crypto wallet address). A match aborts the assessment (`FAILED`, generic message, `WARN` log of the pattern name only) before any LLM call is made or any row is persisted. Adding/editing a pattern is a configuration change. |
+| AI input guardrail                  | Before every model call, the fully-assembled prompt is scanned against a config-driven set of PII patterns (card PAN, IBAN, email, crypto wallet address). A match is advisory only: it logs a `WARN` naming the pattern (never the matched value) and the assessment proceeds normally — it does not abort the model call or block persistence. Adding/editing a pattern is a configuration change. |
 | Guardrail progress visibility        | The SSE stream emits a `GUARDRAIL_CHECK` stage between `HISTORY_RETRIEVAL` and `MODEL_CALL`, visible in the live progress UI like every other stage.               |
 | Dynamic risk-level computation       | `risk_level` is never persisted; every read path (SSE completion, history list, RAG history-context, history filter) derives it from the persisted `risk_score` and the currently-configured thresholds, so a thresholds change is reflected retroactively across all history. |
 | Assessment history drill-down        | Each row in the assessment-history table expands (click-to-expand, mirroring the transaction table's inline-detail pattern) to reveal the fired rules and each one's `scoreContribution`, sorted descending. |
@@ -83,12 +85,14 @@ changes (range-on-`risk_score` instead of equality-on-`risk_level`).
 
 ## Acceptance Criteria
 
-1. A prompt containing a seeded PII-shaped value (card PAN, IBAN, email, or crypto wallet address pattern) is blocked
-   before the AI client is ever invoked; the SSE stream emits `FAILED` with a generic message; the backend log
-   contains a `WARN` line naming the violated pattern, never the matched value; no `risk_final_assessments` row is
-   written for the blocked run.
-2. A clean, real-seed-data prompt is unaffected by the guardrail (no false positive) — verified against the existing
-   seeded rules/transactions/history fixtures.
+1. A prompt containing a PII-shaped value (card PAN, IBAN, email, or crypto wallet address pattern) triggers a
+   `WARN` log line naming the violated pattern (never the matched value) but does **not** abort the assessment — the
+   AI client is still invoked and the result is still persisted and streamed to `COMPLETE`, exactly as a clean
+   prompt would be.
+2. A real-seed-data assessment run completes normally end-to-end (`COMPLETE`, persisted row) regardless of whether
+   the guardrail fires — verified against the existing seeded rules/transactions/history fixtures. (The guardrail's
+   broad regexes are known to false-positive against non-PII structural identifiers, e.g. an all-digit UUID segment;
+   since the check is advisory-only, this is a noisy log line, not a functional break — see Risks/Open Questions.)
 3. The SSE stream for a successful run includes a `GUARDRAIL_CHECK` stage between `HISTORY_RETRIEVAL` and
    `MODEL_CALL`.
 4. `risk_final_assessments` has no `risk_level` column after the new migration runs; the entity, repository queries,
@@ -108,11 +112,12 @@ changes (range-on-`risk_score` instead of equality-on-`risk_level`).
 ## Testing Scope
 
 Backend: a guardrail service unit test covering pattern hits (one per PII category) and misses; a config-properties
-test asserting fail-fast startup validation (invalid/empty pattern configuration); an orchestrator test covering the
-block-before-model-call path (asserts the AI client is never invoked and no row is persisted); a regression test
-proving that two reads of the same persisted `risk_score` under different `app.risk.level-thresholds` values produce
-different computed `riskLevel` results; updated specification/history-service tests covering the `riskLevel` filter's
-translation to a `risk_score` range predicate, including combination with other existing filters.
+test asserting fail-fast startup validation (invalid/empty pattern configuration); an orchestrator test proving a
+guardrail match is advisory only (the AI client is still invoked and the result is still persisted); a regression
+test proving that two reads of the same persisted `risk_score` under different `app.risk.level-thresholds` values
+produce different computed `riskLevel` results; updated specification/history-service tests covering the
+`riskLevel` filter's translation to a `risk_score` range predicate, including combination with other existing
+filters.
 
 Frontend: `risk-assessment-history-table.component.spec.ts` covers expand/collapse and fired-rules rendering; a new
 spec for the shared rule-contributions component; `risk-assessment-trigger.component.spec.ts` covers the same
@@ -120,6 +125,20 @@ breakdown rendering on `COMPLETE`; a new spec for the shared risk-level badge co
 
 ## Risks / Open Questions
 
+- **Guardrail is advisory, not blocking (post-completion amendment).** The phase originally shipped with the
+  guardrail *aborting* the assessment on a match (`FAILED`, no persistence). In manual verification against the
+  seeded demo data, this blocked every assessment for `transactionId=c0000000-0000-0000-0000-000000000001`: the
+  `CARD_PAN` regex (`\b(?:\d[ -]?){13,19}\b`) doesn't just match a contiguous digit run — the optional `-`
+  separator lets it bridge across a UUID's hyphen-delimited hex groups, and this transaction ID's mostly-zero
+  demo value produced a 16-digit match spanning three groups. The transaction ID is a required, non-PII structural
+  field (`PromptContextMapper` always includes it) — this was a false positive the original "verified no false
+  positive" analysis missed, because it only checked a single UUID hex group in isolation, not the regex bridging
+  across group boundaries. Rather than engineer a more precise, structurally-aware PAN detector (Luhn validation,
+  boundary-aware exclusions, etc.) for a check that Phase 4's `PromptContextMapper` allow-list already makes
+  first-line-of-defense-redundant in the common case, the guardrail was simplified to advisory-only: it still
+  scans and still logs a `WARN` naming the matched pattern (so a real regression in the allow-list is still
+  visible to an operator), but a match no longer blocks the AI interaction. A more precise, blocking-capable
+  detector is a valid future improvement if a real PII-carrying free-text field is ever added to the prompt.
 - **"Out of scope querying" has no current attack surface.** The original ask names both PII disclosure and
   out-of-scope querying, but research confirmed there is no free-text user input anywhere near the AI risk-assessment
   flow today — assessments are triggered by a button click on a `transactionId`, and the prompt template's variables

@@ -81,7 +81,6 @@ class AiRiskAssessmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 UUID.randomUUID(),
                 transactionId,
                 triggeredAt,
-                RiskLevel.HIGH,
                 new BigDecimal("32.50"),
                 "findings",
                 "recommendations"));
@@ -112,7 +111,6 @@ class AiRiskAssessmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 UUID.randomUUID(),
                 transactionId,
                 triggeredAt,
-                RiskLevel.MEDIUM,
                 new BigDecimal("20.00"),
                 "findings",
                 "recommendations"));

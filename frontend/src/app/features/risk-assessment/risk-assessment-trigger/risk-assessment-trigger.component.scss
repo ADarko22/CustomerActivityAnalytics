@@ -66,21 +66,6 @@
   font-weight: 400;
 }
 
-.risk-chip-low {
-  --mdc-chip-elevated-container-color: #e6f4ea;
-  --mdc-chip-label-text-color: #1e7e34;
-}
-
-.risk-chip-medium {
-  --mdc-chip-elevated-container-color: #fff4e5;
-  --mdc-chip-label-text-color: #b26a00;
-}
-
-.risk-chip-high {
-  --mdc-chip-elevated-container-color: #fdecea;
-  --mdc-chip-label-text-color: #c62828;
-}
-
 .error-panel {
   border-left: 4px solid #c62828;
   padding-left: 0.75rem;

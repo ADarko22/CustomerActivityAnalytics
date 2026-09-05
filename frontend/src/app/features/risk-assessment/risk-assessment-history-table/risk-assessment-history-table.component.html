@@ -2,6 +2,7 @@
   mat-table
   [dataSource]="assessments()"
   matSort
+  multiTemplateDataRows
   (matSortChange)="onSortChange($event)"
   class="history-table"
 >
@@ -98,9 +99,7 @@
       <td mat-cell *matCellDef="let row">
         @switch (column.key) {
           @case ('riskLevel') {
-            <mat-chip [class]="'risk-chip-' + row.riskLevel.toLowerCase()">{{
-              row.riskLevel
-            }}</mat-chip>
+            <app-risk-level-badge [level]="row.riskLevel" />
           }
           @case ('findings') {
             <span class="truncated" [matTooltip]="row.findings">{{ row.findings }}</span>
@@ -118,8 +117,25 @@
     </ng-container>
   }
 
+  <ng-container matColumnDef="expandedDetail">
+    <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+      <app-rule-contributions-list [contributions]="row.ruleContributions" />
+    </td>
+  </ng-container>
+
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns" class="assessment-row"></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: displayedColumns"
+    class="assessment-row"
+    (click)="toggleExpand(row)"
+  ></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: ['expandedDetail']"
+    class="detail-row"
+    [class.detail-row-open]="row.assessmentId === expandedAssessmentId()"
+  ></tr>
 </table>
 
 <mat-paginator

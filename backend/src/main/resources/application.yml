@@ -63,6 +63,16 @@ app:
       low-max: 30
       medium-max: 70
     history-context-size: 5
+    guardrail:
+      patterns:
+        - name: CARD_PAN
+          regex: '\b(?:\d[ -]?){13,19}\b'
+        - name: IBAN
+          regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b'
+        - name: EMAIL
+          regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+        - name: CRYPTO_WALLET
+          regex: '\b0x[a-fA-F0-9]{40}\b|\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b'
 
 server:
   port: ${SERVER_PORT:8080}

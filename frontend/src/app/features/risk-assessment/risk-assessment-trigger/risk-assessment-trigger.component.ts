@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FaIconComponent } from '@fortawesome/angular-fontawesome';
 import { faCircleCheck, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
@@ -11,6 +10,8 @@ import {
   AssessmentStage,
 } from '../../../core/models/ai-risk-assessment.model';
 import { AiRiskAssessmentService } from '../../../core/services/ai-risk-assessment.service';
+import { RiskLevelBadgeComponent } from '../risk-level-badge/risk-level-badge.component';
+import { RuleContributionsListComponent } from '../rule-contributions-list/rule-contributions-list.component';
 
 type ViewState = 'idle' | 'running' | 'complete' | 'failed';
 
@@ -18,6 +19,7 @@ const PROGRESS_STAGES: AssessmentStage[] = [
   'PROMPT_BUILDING',
   'RULE_RETRIEVAL',
   'HISTORY_RETRIEVAL',
+  'GUARDRAIL_CHECK',
   'MODEL_CALL',
 ];
 
@@ -25,6 +27,7 @@ const STAGE_LABELS: Record<AssessmentStage, string> = {
   PROMPT_BUILDING: 'Building prompt',
   RULE_RETRIEVAL: 'Retrieving risk rules',
   HISTORY_RETRIEVAL: 'Retrieving assessment history',
+  GUARDRAIL_CHECK: 'Running safety checks',
   MODEL_CALL: 'Calling AI model',
   COMPLETE: 'Complete',
   FAILED: 'Failed',
@@ -38,9 +41,10 @@ const DEFAULT_ERROR_MESSAGE = 'Connection lost while assessing this transaction.
   imports: [
     CommonModule,
     MatButtonModule,
-    MatChipsModule,
     MatProgressSpinnerModule,
     FaIconComponent,
+    RiskLevelBadgeComponent,
+    RuleContributionsListComponent,
   ],
   templateUrl: './risk-assessment-trigger.component.html',
   styleUrl: './risk-assessment-trigger.component.scss',

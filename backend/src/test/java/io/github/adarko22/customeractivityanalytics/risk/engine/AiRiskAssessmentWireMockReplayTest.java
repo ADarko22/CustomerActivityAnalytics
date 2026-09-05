@@ -63,6 +63,7 @@ class AiRiskAssessmentWireMockReplayTest extends AbstractPostgresIntegrationTest
     @Autowired private RiskRuleRepository riskRuleRepository;
     @Autowired private RiskFinalAssessmentRepository riskFinalAssessmentRepository;
     @Autowired private AiRiskAssessmentOrchestrator orchestrator;
+    @Autowired private RiskAssessmentProperties riskProperties;
 
     private UUID transactionId;
     private UUID ruleId;
@@ -138,7 +139,7 @@ class AiRiskAssessmentWireMockReplayTest extends AbstractPostgresIntegrationTest
       assertThat(persisted).hasSize(1);
       // riskScore = rule weight (25.00) x model relevance (0.75) = 18.75, within the default
       // app.risk.level-thresholds.low-max (30) configured in application.yml.
-      assertThat(persisted.get(0).getRiskLevel()).isEqualTo(RiskLevel.LOW);
+      assertThat(riskProperties.levelFor(persisted.get(0).getRiskScore())).isEqualTo(RiskLevel.LOW);
       assertThat(persisted.get(0).getRiskScore()).isEqualByComparingTo("18.75");
       assertThat(persisted.get(0).getFindings()).isEqualTo("Stub findings from WireMock");
     }

@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.adarko22.customeractivityanalytics.AbstractPostgresIntegrationTest;
 import io.github.adarko22.customeractivityanalytics.customer.Customer;
 import io.github.adarko22.customeractivityanalytics.customer.CustomerRepository;
+import io.github.adarko22.customeractivityanalytics.risk.engine.RiskAssessmentProperties;
 import io.github.adarko22.customeractivityanalytics.transaction.TransactionStatus;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivity;
 import io.github.adarko22.customeractivityanalytics.transaction.card.CardActivityRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -27,6 +29,14 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
   @Autowired private CustomerRepository customerRepository;
   @Autowired private CardActivityRepository cardActivityRepository;
   @Autowired private RiskFinalAssessmentRepository riskFinalAssessmentRepository;
+
+  private final RiskAssessmentProperties riskProperties =
+      new RiskAssessmentProperties(
+          5,
+          Duration.ofSeconds(45),
+          Duration.ofSeconds(50),
+          new RiskAssessmentProperties.LevelThresholds(new BigDecimal("30"), new BigDecimal("70")),
+          5);
 
   private UUID customerA;
   private UUID customerB;
@@ -51,9 +61,9 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
     t1 = Instant.now().truncatedTo(ChronoUnit.MILLIS).minus(3, ChronoUnit.DAYS);
     t2 = Instant.now().truncatedTo(ChronoUnit.MILLIS).minus(2, ChronoUnit.DAYS);
     t3 = Instant.now().truncatedTo(ChronoUnit.MILLIS).minus(1, ChronoUnit.DAYS);
-    riskFinalAssessmentRepository.save(assessment(transaction1, t1, RiskLevel.LOW, "10.00"));
-    riskFinalAssessmentRepository.save(assessment(transaction1, t2, RiskLevel.HIGH, "90.00"));
-    riskFinalAssessmentRepository.save(assessment(transaction2, t3, RiskLevel.MEDIUM, "50.00"));
+    riskFinalAssessmentRepository.save(assessment(transaction1, t1, "10.00"));
+    riskFinalAssessmentRepository.save(assessment(transaction1, t2, "90.00"));
+    riskFinalAssessmentRepository.save(assessment(transaction2, t3, "50.00"));
   }
 
   @Test
@@ -62,7 +72,7 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, null, null, null, null, null, null),
+                    customerA, null, null, null, null, null, null, riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -78,7 +88,7 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, transaction1, null, null, null, null, null),
+                    customerA, transaction1, null, null, null, null, null, riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -91,12 +101,38 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, null, RiskLevel.HIGH, null, null, null, null),
+                    customerA, null, RiskLevel.HIGH, null, null, null, null, riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
     assertThat(results).hasSize(1);
-    assertThat(results.get(0).getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+    assertThat(riskProperties.levelFor(results.get(0).getRiskScore())).isEqualTo(RiskLevel.HIGH);
+  }
+
+  @Test
+  void filtersByRiskLevelCombinedWithAnotherFilter() {
+    // Both transaction1 rows are HIGH-scored under a tightened threshold, but only one belongs
+    // to transaction1 — proving riskLevel and transactionId combine with AND, not OR.
+    riskFinalAssessmentRepository.save(assessment(transaction2, t3.plusSeconds(1), "95.00"));
+
+    List<RiskFinalAssessment> results =
+        riskFinalAssessmentRepository
+            .findAll(
+                RiskFinalAssessmentSpecifications.filter(
+                    customerA,
+                    transaction1,
+                    RiskLevel.HIGH,
+                    null,
+                    null,
+                    null,
+                    null,
+                    riskProperties),
+                PageRequest.of(0, 10))
+            .getContent();
+
+    assertThat(results).hasSize(1);
+    assertThat(results.get(0).getTransactionId()).isEqualTo(transaction1);
+    assertThat(results.get(0).getRiskScore()).isEqualByComparingTo("90.00");
   }
 
   @Test
@@ -105,7 +141,14 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
         riskFinalAssessmentRepository
             .findAll(
                 RiskFinalAssessmentSpecifications.filter(
-                    customerA, null, null, t1.plusSeconds(1), t2.plusSeconds(1), null, null),
+                    customerA,
+                    null,
+                    null,
+                    t1.plusSeconds(1),
+                    t2.plusSeconds(1),
+                    null,
+                    null,
+                    riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -125,7 +168,8 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
                     null,
                     null,
                     new BigDecimal("50.00"),
-                    new BigDecimal("100.00")),
+                    new BigDecimal("100.00"),
+                    riskProperties),
                 PageRequest.of(0, 10))
             .getContent();
 
@@ -151,12 +195,11 @@ class RiskFinalAssessmentSpecificationsTest extends AbstractPostgresIntegrationT
   }
 
   private static RiskFinalAssessment assessment(
-      UUID transactionId, Instant triggeredAt, RiskLevel level, String score) {
+      UUID transactionId, Instant triggeredAt, String score) {
     return new RiskFinalAssessment(
         UUID.randomUUID(),
         transactionId,
         triggeredAt,
-        level,
         new BigDecimal(score),
         "findings",
         "recommendations");

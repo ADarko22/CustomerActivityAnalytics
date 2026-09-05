@@ -31,11 +31,12 @@
     @if (result(); as r) {
       <div class="result-panel">
         <div class="result-header">
-          <mat-chip [class]="'risk-chip-' + r.riskLevel.toLowerCase()">{{ r.riskLevel }}</mat-chip>
+          <app-risk-level-badge [level]="r.riskLevel" />
           <span class="score-label">Score: {{ r.riskScore }}</span>
         </div>
         <p><strong>Findings:</strong> {{ r.findings }}</p>
         <p><strong>Recommendations:</strong> {{ r.recommendations }}</p>
+        <app-rule-contributions-list [contributions]="r.ruleContributions" />
         <div class="result-actions">
           <button type="button" mat-button (click)="trigger()">Run again</button>
         </div>

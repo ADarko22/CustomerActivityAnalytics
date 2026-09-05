@@ -1,0 +1,12 @@
+@if (sortedContributions.length) {
+  <ul class="rule-contributions-list">
+    @for (c of sortedContributions; track c.ruleId) {
+      <li>
+        <span class="rule-name">{{ c.ruleName }}</span>
+        <span class="rule-score">+{{ c.scoreContribution }}</span>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty-state">No rules fired for this assessment.</p>
+}

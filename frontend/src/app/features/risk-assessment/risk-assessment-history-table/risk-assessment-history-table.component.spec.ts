@@ -187,4 +187,34 @@ describe('RiskAssessmentHistoryTableComponent', () => {
     expect(req.request.params.has('riskLevel')).toBeFalse();
     req.flush(emptyPage);
   }));
+
+  it('expands a row on click to reveal its fired rules, and collapses it on a second click', () => {
+    flushInitial({
+      content: [assessment1, assessment2],
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 10,
+    });
+
+    expect(component.expandedAssessmentId()).toBeNull();
+    let detailRows = fixture.debugElement.queryAll(By.css('tr.detail-row-open'));
+    expect(detailRows.length).toBe(0);
+
+    const assessmentRows = fixture.debugElement.queryAll(By.css('tr.assessment-row'));
+    assessmentRows[0].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.expandedAssessmentId()).toBe('a1');
+    detailRows = fixture.debugElement.queryAll(By.css('tr.detail-row-open'));
+    expect(detailRows.length).toBe(1);
+    expect(detailRows[0].nativeElement.textContent).toContain('High-value transaction');
+    expect(detailRows[0].nativeElement.textContent).toContain('+20');
+
+    assessmentRows[0].nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.expandedAssessmentId()).toBeNull();
+    expect(fixture.debugElement.queryAll(By.css('tr.detail-row-open')).length).toBe(0);
+  });
 });

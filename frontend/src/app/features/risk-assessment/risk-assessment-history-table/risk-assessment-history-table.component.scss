@@ -36,17 +36,21 @@ th.mat-mdc-header-cell {
   vertical-align: middle;
 }
 
-.risk-chip-low {
-  --mdc-chip-elevated-container-color: #e6f4ea;
-  --mdc-chip-label-text-color: #1e7e34;
+tr.assessment-row {
+  cursor: pointer;
 }
 
-.risk-chip-medium {
-  --mdc-chip-elevated-container-color: #fff4e5;
-  --mdc-chip-label-text-color: #b26a00;
-}
+tr.detail-row {
+  // `height: 0` / `overflow: hidden` don't reliably collapse a <tr> across browsers once its
+  // <td> has content; `display: none` removes it from table layout entirely, which does.
+  display: none;
 
-.risk-chip-high {
-  --mdc-chip-elevated-container-color: #fdecea;
-  --mdc-chip-label-text-color: #c62828;
+  &.detail-row-open {
+    display: table-row;
+
+    td {
+      padding: 0 1rem 1rem;
+      border-bottom: none;
+    }
+  }
 }

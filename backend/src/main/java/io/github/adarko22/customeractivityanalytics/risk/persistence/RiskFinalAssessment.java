@@ -2,8 +2,6 @@ package io.github.adarko22.customeractivityanalytics.risk.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -25,10 +23,6 @@ public class RiskFinalAssessment {
   @Column(name = "triggered_at", nullable = false)
   private Instant triggeredAt;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "risk_level", nullable = false)
-  private RiskLevel riskLevel;
-
   @Column(name = "risk_score", nullable = false)
   private BigDecimal riskScore;
 
@@ -44,14 +38,12 @@ public class RiskFinalAssessment {
       UUID assessmentId,
       UUID transactionId,
       Instant triggeredAt,
-      RiskLevel riskLevel,
       BigDecimal riskScore,
       String findings,
       String recommendations) {
     this.assessmentId = assessmentId;
     this.transactionId = transactionId;
     this.triggeredAt = triggeredAt;
-    this.riskLevel = riskLevel;
     this.riskScore = riskScore;
     this.findings = findings;
     this.recommendations = recommendations;
@@ -67,10 +59,6 @@ public class RiskFinalAssessment {
 
   public Instant getTriggeredAt() {
     return triggeredAt;
-  }
-
-  public RiskLevel getRiskLevel() {
-    return riskLevel;
   }
 
   public BigDecimal getRiskScore() {
