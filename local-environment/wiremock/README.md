@@ -1,16 +1,21 @@
 # WireMock — offline LLM stub (Phase 4 / Phase 4 EXT)
 
 `docker-compose up wiremock` serves canned, provider-shaped chat responses so the AI risk assessment
-demo runs fully offline (`docs/DECISIONS.md` D4), for either provider `app.ai.provider` selects
-(`docs/DECISIONS.md` D19):
+demo runs fully offline ([DECISIONS.md](../../docs/DECISIONS.md) D4), for either provider `app.ai.provider` selects
+([DECISIONS.md](../../docs/DECISIONS.md) D19):
 
-- OpenAI — `mappings/openai-chat-completions.json` / `__files/openai-chat-completions-response.json`
-  (`POST /v1/chat/completions`). The backend's `local` profile (`application-local.yml`) points
+- OpenAI — [openai-chat-completions.json](mappings/openai-chat-completions.json) /
+  [openai-chat-completions-response.json](__files/openai-chat-completions-response.json)
+  (`POST /v1/chat/completions`). The backend's `local`
+  profile ([application-local.yml](../../backend/src/main/resources/application-local.yml)) points
   `spring.ai.openai.base-url` at this container (with the `/v1` suffix — the openai-java SDK's default
   base-url already includes the path, so a full override must too).
-- Anthropic — `mappings/anthropic-messages.json` / `__files/anthropic-messages-response.json`
-  (`POST /v1/messages`). `application-local.yml` points `spring.ai.anthropic.base-url` at the same
-  container (no `/v1` suffix — the anthropic-java SDK appends `/v1/messages` itself).
+-
+
+Anthropic — [anthropic-messages.json](mappings/anthropic-messages.json) / [anthropic-messages-response.json](__files/anthropic-messages-response.json)
+(`POST /v1/messages`). [application-local.yml](../../backend/src/main/resources/application-local.yml) points
+`spring.ai.anthropic.base-url` at the same container (no `/v1` suffix — the anthropic-java SDK appends `/v1/messages`
+itself).
 
 Both mappings are always present, so switching `app.ai.provider` between `openai` and `anthropic`
 never requires touching WireMock config — only the mapping matching the active provider's request
@@ -29,7 +34,8 @@ provider whose response you want to capture; it defaults to `https://api.openai.
 2. Start WireMock in record mode: `WIREMOCK_RECORD_MODE=true docker compose up wiremock` (proxies
    unmatched requests to `https://api.openai.com` — the default `WIREMOCK_PROXY_TARGET` — and records
    the exchange).
-3. Run the backend against this WireMock instance as usual (`application-local.yml`'s `base-url` still
+3. Run the backend against this WireMock instance as
+   usual ([application-local.yml](../../backend/src/main/resources/application-local.yml)'s `base-url` still
    points here, and `app.ai.provider` should be `openai` or unset) and trigger a live AI risk
    assessment through the UI.
 4. WireMock writes the newly recorded mapping + response body under its own `mappings`/`__files` —

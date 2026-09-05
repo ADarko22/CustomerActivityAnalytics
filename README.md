@@ -17,17 +17,28 @@ in the [libs.versions.toml](gradle/libs.versions.toml) catalog.
 Prerequisites: JDK 25 (managed via the Gradle toolchain), Docker Desktop (or another Docker daemon) running. Node is
 provisioned automatically by Gradle for the frontend.
 
-- **Run everything locally, one terminal:** `./gradlew dev` — starts Postgres (Docker Compose), the backend
-  (`:8080`), and the frontend (`:4200`), multiplexed with colored `[docker]` / `[backend]` / `[frontend]` prefixes.
-  Stop with Ctrl-C.
-- **Verify:** `./gradlew check` — lint, tests, and coverage for both modules.
-- **Build:** `./gradlew build`.
-- **Backend health:** http://localhost:8080/actuator/health. Frontend: http://localhost:4200.
+- **Run everything locally, one terminal:**
+    - `./gradlew dev` — starts Postgres (Docker Compose), the backend(`:8080`), and the frontend (`:4200`).
+    - Stop with Ctrl-C.
+- **Verify:**
+    - `./gradlew check` — lint, tests, and coverage for both modules.
+- **Build:**
+    - `./gradlew build`.
+- **Backend health:** http://localhost:8080/actuator/health.
+- **Frontend:** http://localhost:4200.
 - **AI risk assessments run offline by default** against a WireMock-stubbed LLM.
     - Configure `app.ai.provider` (or `AI_PROVIDER` env var) to select `openai` (default) or `anthropic`
-    - set the matching `OPENAI_API_KEY`/`OPENAI_MODEL` and `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`
-    - clear the provider's `local`-profile `base-url` override (
+    - Set the matching `OPENAI_API_KEY`/`OPENAI_MODEL` and `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`
+    - Clear the provider's `local`-profile `base-url` override (
       see [wiremock/README.md](local-environment/wiremock/README.md)).
+    - ```   
+      AI_PROVIDER=anthropic \
+      ANTHROPIC_API_KEY=sk-ant-your-key-here \
+      ANTHROPIC_MODEL=claude-haiku-4-5 \
+      WIREMOCK_RECORD_MODE=true \
+      WIREMOCK_PROXY_TARGET=https://api.anthropic.com \
+      ./gradlew dev
+      ```
 
 ## Architecture
 

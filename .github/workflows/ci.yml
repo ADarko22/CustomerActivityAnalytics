@@ -39,10 +39,12 @@ jobs:
         run: ./gradlew check
 
       - name: SonarCloud analysis
-        # A step's own `env:` block isn't visible to its own `if:` condition (only job/workflow-level
-        # env is) — this must reference `secrets` directly, or the step silently never runs.
-        if: ${{ secrets.SONAR_TOKEN != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonar
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            ./gradlew sonar
+          else
+            echo "SONAR_TOKEN is not configured; skipping SonarCloud analysis."
+          fi
