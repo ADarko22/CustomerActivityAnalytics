@@ -1,6 +1,6 @@
 # Phase 5 EXT_2 — Refining AI Features
 
-**Status:** NOT_STARTED
+**Status:** PLANNED
 **Depends on:** `PHASE_5_EXT.md` (`COMPLETE`, frozen — not reopened). Enforce input guardrail on AI usage to protect PII
 and out of scope querying. Display the risk_assessments entries in the assessment history table as a detailed view of a
 risk_final_assessments entity.
