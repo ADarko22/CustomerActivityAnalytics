@@ -1,0 +1,27 @@
+{
+  "model": "claude-haiku-4-5-20251001",
+  "id": "msg_011CekYWJxE9qwaADPrpo92g",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "```\n{\n  \"findings\": \"The transaction is a €542.50 wire payment to France (an EU member state) with PENDING status. The amount does not exceed the high-value thresholds specified in rules 90000000-0000-0000-0000-000000000001 (€5,000) or 90000000-0000-0000-0000-000000000006 (€10,000). France represents a commonly trusted corridor within the EU, mitigating cross-border jurisdiction risk. The transaction status is PENDING, not FAILED or REVERSED.\",\n  \"recommendations\": \"No action needed. The transaction presents low risk based on the supplied rules and should be allowed to proceed.\",\n  \"ruleMatches\": []\n}\n```"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 1270,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 175,
+    "service_tier": "standard",
+    "inference_geo": "not_available"
+  }
+}

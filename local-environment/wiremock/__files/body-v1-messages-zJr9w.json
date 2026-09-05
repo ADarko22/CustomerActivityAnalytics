@@ -1,0 +1,27 @@
+{
+  "model": "claude-haiku-4-5-20251001",
+  "id": "msg_011CekYTQVmitucjjNU9CCph",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "```json\n{\n  \"findings\": \"This crypto transaction involves 0.07 BTC completed on Kraken exchange. The transaction amount is well below the high-value thresholds specified in the candidate rules (5,000 in transaction currency for standard high-value, and 10,000 equivalent for crypto high-value). The transaction has a known exchange counterpart (Kraken), and the status is COMPLETED, indicating successful processing.\",\n  \"recommendations\": \"No action needed. This transaction presents minimal risk based on the candidate rules provided. The low amount and completed status with a regulated exchange counterpart do not trigger any meaningful risk indicators.\",\n  \"ruleMatches\": []\n}\n```"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 1354,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 155,
+    "service_tier": "standard",
+    "inference_geo": "not_available"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "model": "claude-haiku-4-5-20251001",
+  "id": "msg_011CekYX95Rwk2opy9vMxNLh",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"findings\": \"The transaction is a failed SWIFT payment of €585 to the US, which does not exceed the high-value thresholds for either standard transactions (€5,000) or SWIFT transfers (€10,000). The primary risk indicator is the failed transaction status, which suggests a declined attempt or system issue. The US is a commonly trusted corridor, so no cross-border jurisdiction concern applies.\",\n  \"recommendations\": \"No action needed. The transaction presents minimal risk and the failure itself is not unusual. Monitor the customer's account for patterns of repeated failed attempts if they occur.\",\n  \"ruleMatches\": [\n    {\n      \"ruleId\": \"90000000-0000-0000-0000-000000000002\",\n      \"relevance\": 0.60\n    }\n  ]\n}"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 1265,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 187,
+    "service_tier": "standard",
+    "inference_geo": "not_available"
+  }
+}

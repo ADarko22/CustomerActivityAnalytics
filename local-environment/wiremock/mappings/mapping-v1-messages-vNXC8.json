@@ -1,0 +1,44 @@
+{
+  "id" : "97119661-c22d-35e9-9573-9def94949828",
+  "request" : {
+    "url" : "/v1/messages",
+    "method" : "POST",
+    "bodyPatterns" : [ {
+      "equalToJson" : "{\"max_tokens\":4096,\"messages\":[{\"content\":\"Assess the following transaction for risk.\\n\\n## Transaction context\\ntransactionId: f0000000-0000-0000-0000-000000000026\\nactivityType: CARD\\namount: 131.60\\ncurrency: EUR\\nstatus: FAILED\\ncreatedAt: 2025-12-01T00:00:00Z\\ncardType: PREPAID\\nmerchantName: Starbucks\\nmccCode: 6026\\ncardPresent: true\\ndeclineReason: null\\n\\n\\n## Candidate risk rules\\n- id: 90000000-0000-0000-0000-000000000001\\n  name: High-value transaction\\n  appliesTo: ALL\\n  weight: 25.00\\n  condition: Transaction amount exceeds 5,000 in its transaction currency, regardless of activity type.\\n- id: 90000000-0000-0000-0000-000000000002\\n  name: Repeated failed or reversed activity\\n  appliesTo: ALL\\n  weight: 10.00\\n  condition: Transaction status is FAILED or REVERSED, which may indicate a declined attempt or a walked-back transfer.\\n- id: 90000000-0000-0000-0000-000000000003\\n  name: Card-not-present at high-chargeback merchant category\\n  appliesTo: CARD\\n  weight: 20.00\\n  condition: Card-not-present (cardPresent = false) transaction at a merchant category code commonly associated with high chargeback rates (e.g. electronics, travel, digital goods).\\n- id: 90000000-0000-0000-0000-000000000004\\n  name: Declined authorization\\n  appliesTo: CARD\\n  weight: 15.00\\n  condition: The card transaction carries a non-null decline reason, indicating the issuer refused authorization.\\n\\n\\n## Prior assessments for this transaction (most recent first)\\n(no prior assessments for this transaction)\\n\\nYour response should be in JSON format.\\nDo not include any explanations, only provide a RFC8259 compliant JSON response following this format without deviation.\\nDo not include markdown code blocks in your response.\\nRemove the ```json markdown from the output.\\nHere is the JSON Schema instance your output must adhere to:\\n```{\\n  \\\"$schema\\\" : \\\"https://json-schema.org/draft/2020-12/schema\\\",\\n  \\\"type\\\" : \\\"object\\\",\\n  \\\"properties\\\" : {\\n    \\\"findings\\\" : {\\n      \\\"type\\\" : \\\"string\\\"\\n    },\\n    \\\"recommendations\\\" : {\\n      \\\"type\\\" : \\\"string\\\"\\n    },\\n    \\\"ruleMatches\\\" : {\\n      \\\"type\\\" : \\\"array\\\",\\n      \\\"items\\\" : {\\n        \\\"type\\\" : \\\"object\\\",\\n        \\\"properties\\\" : {\\n          \\\"relevance\\\" : {\\n            \\\"type\\\" : \\\"number\\\"\\n          },\\n          \\\"ruleId\\\" : {\\n            \\\"type\\\" : \\\"string\\\",\\n            \\\"format\\\" : \\\"uuid\\\"\\n          }\\n        },\\n        \\\"required\\\" : [ \\\"relevance\\\", \\\"ruleId\\\" ],\\n        \\\"additionalProperties\\\" : false\\n      }\\n    }\\n  },\\n  \\\"required\\\" : [ \\\"findings\\\", \\\"recommendations\\\", \\\"ruleMatches\\\" ],\\n  \\\"additionalProperties\\\" : false\\n}```\\n\",\"role\":\"user\"}],\"model\":\"claude-haiku-4-5\",\"system\":\"You are a financial-crime risk analyst assistant for a bank's Customer Care operations team.\\n\\nYou will be given a single transaction's context (with all personally identifiable information already\\nremoved), a list of candidate risk rules, and a short history of prior risk assessments for the same\\ntransaction. Your job is to decide, for each candidate rule, whether the transaction matches it and how\\nstrongly, then produce a findings summary and recommendations for the human operator.\\n\\nRules for your response:\\n- Only cite rule IDs that appear in the supplied candidate rule list. Never invent a rule ID.\\n- For each rule you judge as matching, assign a \\\"relevance\\\" score in the closed interval [0.00, 1.00],\\n  where 1.00 means the transaction is an unambiguous, textbook match for that rule's condition, and values\\n  closer to 0.00 mean a weak or partial match. Only include rules with relevance > 0 — do not list\\n  non-matching rules.\\n- Base your findings and recommendations only on the transaction context, the candidate rules, and the\\n  assessment history you are given. Do not assume any information that was not provided.\\n- Findings should be a concise, factual summary (2-4 sentences) of why the transaction was scored the way\\n  it was. Recommendations should be concrete next steps for the operator (e.g. \\\"verify beneficiary\\n  identity\\\", \\\"no action needed\\\").\\n- Respond only with the structured output requested — no extra commentary outside that structure.\\n\"}",
+      "ignoreArrayOrder" : true,
+      "ignoreExtraElements" : true
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "body-v1-messages-vNXC8.json",
+    "headers" : {
+      "anthropic-organization-id" : "55a48993-8738-49a3-979c-4a2f31b3603d",
+      "Server" : "cloudflare",
+      "vary" : "Accept-Encoding",
+      "anthropic-ratelimit-output-tokens-limit" : "80000",
+      "anthropic-ratelimit-output-tokens-reset" : "2026-09-05T15:40:23Z",
+      "anthropic-ratelimit-input-tokens-reset" : "2026-09-05T15:40:21Z",
+      "anthropic-ratelimit-tokens-remaining" : "579000",
+      "anthropic-ratelimit-requests-limit" : "1000",
+      "anthropic-workspace-id" : "wrkspc_014kumQz2Wb8cMQ7b8Z95VqS",
+      "Content-Security-Policy" : "default-src 'none'; frame-ancestors 'none'",
+      "anthropic-ratelimit-input-tokens-remaining" : "499000",
+      "anthropic-ratelimit-requests-remaining" : "999",
+      "Content-Type" : "application/json",
+      "CF-RAY" : "a36654f5290424c4-ZRH",
+      "anthropic-ratelimit-tokens-limit" : "580000",
+      "cf-cache-status" : "DYNAMIC",
+      "request-id" : "req_011CekYZLYZEjPVpNDtLvupU",
+      "anthropic-ratelimit-tokens-reset" : "2026-09-05T15:40:21Z",
+      "strict-transport-security" : "max-age=31536000; includeSubDomains; preload",
+      "Date" : "Sat, 05 Sep 2026 15:40:23 GMT",
+      "X-Robots-Tag" : "none",
+      "anthropic-ratelimit-requests-reset" : "2026-09-05T15:40:20Z",
+      "anthropic-ratelimit-input-tokens-limit" : "500000",
+      "traceresponse" : "00-4a8fd76cac9fb553dce7d41bb6d933fd-7f4594d79ab2168f-01",
+      "anthropic-ratelimit-output-tokens-remaining" : "80000"
+    }
+  },
+  "uuid" : "97119661-c22d-35e9-9573-9def94949828"
+}

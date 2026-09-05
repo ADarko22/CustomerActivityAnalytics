@@ -1,0 +1,27 @@
+{
+  "model": "claude-haiku-4-5-20251001",
+  "id": "msg_011CekYa8ubeSxnW5o8aHY6u",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "```\n{\n  \"findings\": \"The transaction is a card-not-present purchase of €131.25 at Amazon (MCC 5025, electronics retail) with pending status. It matches one applicable risk rule: card-not-present transactions at high-chargeback merchant categories. The transaction amount is well below the high-value threshold, the status is pending (not failed or reversed), and there is no decline reason recorded.\",\n  \"recommendations\": \"Monitor the transaction status for completion. If the transaction completes successfully with no chargeback dispute filed within the standard dispute window, no further action is required. Consider this a routine card-not-present electronics purchase with low-to-moderate fraud risk typical for this merchant category.\",\n  \"ruleMatches\": [\n    {\n      \"ruleId\": \"90000000-0000-0000-0000-000000000003\",\n      \"relevance\": 0.75\n    }\n  ]\n}\n```"
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 1206,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 217,
+    "service_tier": "standard",
+    "inference_geo": "not_available"
+  }
+}
