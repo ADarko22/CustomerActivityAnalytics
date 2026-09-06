@@ -51,7 +51,7 @@ flowchart LR
     UI -->|Login redirect, Authorization Code + PKCE| KC[Keycloak]
     API --> DB[(PostgreSQL)]
     API -->|JWKS, JWT verification| KC
-    API -->|Risk-assessment prompts| AI[AI Provider (OpenAI / Anthropic / WireMock-stubbed locally)]
+    API -->|Risk-assessment prompts| AI["AI Provider: OpenAI / Anthropic / WireMock-stubbed locally"]
 ```
 
 - **`backend`** — Java 25, Spring Boot 4.1, Spring Data JPA + Flyway + PostgreSQL, Spring AI, OAuth2 resource
@@ -61,10 +61,7 @@ flowchart LR
 - **`local-environment`** — Docker Compose: PostgreSQL, WireMock (canned AI responses for the offline demo — see
   [wiremock/README.md](local-environment/wiremock/README.md)), and Keycloak (realm provisioned from
   [keycloak/README.md](local-environment/keycloak/README.md) for demo logins).
-
-CI (GitHub Actions) runs `./gradlew check` on every push/PR, plus a SonarCloud analysis pass (backend JaCoCo and
-frontend LCOV coverage both feed into it) whenever the `SONAR_TOKEN` repository secret is configured — see the
-badges above.
+- **CI (GitHub Actions)** — runs `./gradlew check` on every push/PR, plus a SonarCloud analysis pass.
 
 ## Key Design Decisions
 
@@ -86,23 +83,25 @@ The full, durable decision log — every choice made beyond the assignment PDF, 
 - **Local/demo use only:** default database credentials in [docker-compose.yml](local-environment/docker-compose.yml)
   and [application.yml](backend/src/main/resources/application.yml) are placeholders, overridable via environment
   variables.
-- **AI risk assessments run against a WireMock-stubbed LLM by default** (offline, deterministic demo, no API key
-  needed). A real provider requires a real API key for the selected `app.ai.provider` (`OPENAI_API_KEY` or
-  `ANTHROPIC_API_KEY`) and clearing that provider's `local` profile `base-url` override — see
-  [wiremock/README.md](local-environment/wiremock/README.md) for the record-mode toggle that captures new stubs from
-  real provider
-  responses, for either provider.
-- **Every `/api/v1/**` endpoint requires a valid Keycloak-issued OAuth2/OIDC JWT (D2);** risk-rule require the `ADMIN`
-  realm role. Demo logins (`operator`/`password`, `admin`/`admin`) are provisioned .
-- **Customer/transaction data is read-only and seeded for the demo;** the seed dataset only loads under the `local`
-  Spring profile (`./gradlew dev`). Risk rules have full CRUD, gated to the `ADMIN` role for.
-- **Analytics aggregation is computed in memory over an unpaged, already-filtered row fetch** — no DB-side
-  `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
-  [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.
+- **AI risk assessments run against a WireMock-stubbed LLM by default** (offline, deterministic demo).
+    - A real provider requires a real API key for the selected `app.ai.provider` (`OPENAI_API_KEY` or
+      `ANTHROPIC_API_KEY`) and clearing that provider's `local` profile `base-url` override —
+      see [wiremock/README.md](local-environment/wiremock/README.md).
+- **Every `/api/v1/**` endpoint requires a valid Keycloak-issued OAuth2/OIDC JWT (D2);** 
+  - Risk-rule require the `ADMIN` realm role.
+  - Demo logins (`operator`/`password`, `admin`/`admin`) are provisioned.
+- **Customer/transaction data is read-only and seeded for the demo**
+    - The seed dataset only loads under the `local` Spring profile.
+    - Risk rules have full CRUD, gated to the `ADMIN` role for.
+- **Analytics aggregation is computed in memory over an unpaged, already-filtered row fetch**
+    - no DB-side `GROUP BY`/indexes/materialized views yet, appropriate at the assignment's low-load/demo scale. See
+      [PHASE_3_SCALING_NOTES.md](docs/development/PHASE_3_SCALING_NOTES.md) for the scale-up path.
 - **The AI input guardrail is a config-driven regex safety net for PII-shaped content** (card PAN, IBAN, email,
-  crypto wallet address), a second line of defense behind the build-time `PromptContextMapper` allow-list: this covers
-  erroneously data persisted and used to create the deterministic prompts; scope/intent classifier for "out of scope
-  querying" was deliberately not built; revisit if a free-text AI-facing feature is ever added.
+  crypto wallet address)
+    - A second line of defense behind the build-time `PromptContextMapper` allow-list, to cover erroneously data
+      persisted and used to create the deterministic prompts
+    - Scope/intent classifier for "out of scope querying" was deliberately not built; revisit if a free-text AI-facing
+      feature is ever added.
 
 ## Implementation Journey
 
@@ -132,31 +131,35 @@ Each phase is driven manually through Claude CLI. Commands take the phase id **w
 suffix, e.g. `PHASE_2_EXT`, and runs through the identical loop below). The loop for a phase `N`:
 
 1. **Plan** — `claude /plan-phase PHASE_N`
-   Reads the spec, decisions, and `PHASE_N.md`; writes `docs/development/PHASE_N_PLAN.md`; sets `Status: PLANNED`;
-   stops. Touches no source.
+   - Reads the spec, decisions, and `PHASE_N.md`;
+   - writes `docs/development/PHASE_N_PLAN.md`; sets `Status: PLANNED`;
+   - stops. Touches no source.
 
 2. **Review the plan** — `claude /review PHASE_N plan`
-   Audits the plan against the spec/decisions/phase. On `REJECTED: <reasons>`, refine and re-run `/plan-phase PHASE_N`
-   (or `claude "fix docs/development/PHASE_N_PLAN.md: <reasons>"`). Loop until `APPROVED`.
+   - Audits the plan against the spec/decisions/phase. 
+   -  On `REJECTED: <reasons>`, refine and re-run `/plan-phase PHASE_N`.
+   - Loop until `APPROVED`.
 
 3. **Implement** — `claude /implement PHASE_N`
-   Reads `PHASE_N_PLAN.md`; writes Java/TypeScript, Flyway migrations, and seed scripts; runs `./gradlew check` and
-   `npm test`; sets `Status: IMPLEMENTED`.
+   - Reads `PHASE_N_PLAN.md`; 
+   - writes Java/TypeScript, Flyway migrations, and seed scripts; 
+   - runs `./gradlew check` and `npm test`; 
+   - sets `Status: IMPLEMENTED`.
 
 4. **Review the code** — `claude /review PHASE_N code`
-   Inspects `git diff` and build/test output. On `REJECTED: <reasons>`, re-run `/implement PHASE_N`. Loop until
-   `APPROVED`.
+   - Inspects `git diff` and build/test output. 
+   - On `REJECTED: <reasons>`, re-run `/implement PHASE_N`.
+   - Loop until `APPROVED`.
 
 5. **Complete** — `claude /complete PHASE_N`
-   Verifies acceptance criteria, freezes the plan (`Status: COMPLETE`), promotes durable knowledge into this README and
-   `DECISIONS.md`, and sets the phase `Status: COMPLETE`.
+   - Verifies acceptance criteria, freezes the plan (`Status: COMPLETE`). 
+   - Promotes durable knowledge into this README and`DECISIONS.md`.
+   - Sets the phase `Status: COMPLETE`.
 
 6. **Commit** — `git add .` then
-   `claude "Generate a conventional git commit message for the changes and commit."`
+   - `claude "Generate a conventional git commit message for the changes and commit."`
 
 ## LLMs & Agent Instructions (assignment deliverable)
-
-**LLMs of choice.**
 
 The AI risk-assessment feature integrates two providers via Spring AI — OpenAI and Anthropic — selected at runtime by
 `app.ai.provider` (D19), each behind the same `RiskAssessmentAiClient` interface (D18).
