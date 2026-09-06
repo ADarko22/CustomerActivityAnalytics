@@ -45,15 +45,40 @@ Scope/Functional Requirements.
   is now stale (Anthropic has 16 mappings — 15 specific + 1 catch-all — not 1).
 - No `priority` field is set on the catch-all mapping — at default priority (WireMock's implicit tie-break is not
   something to rely on for 16 co-registered mappings), it should be explicit rather than assumed.
-- **Why the 15 specific stubs are not being generalized/pruned (resolving `PHASE_7.md`'s open "Key decision"):**
-  WireMock's `equalToJson` has no partial/field-masking mode, so the only way to make an individual stub tolerant
-  of a different `transactionId`/history is to replace it with `matchesJsonPath` constraints on just the stable
-  fields (`$.system`, `$.model`). But since **all 15 stubs share the identical stable `system` prompt and
-  `model`**, doing that to all of them would make them indistinguishable — only one could ever be reached, per
-  WireMock's own equal-priority tie-break, making the other 14 dead weight. The already-restored catch-all
-  (once its bug is fixed and given a lower `priority`) achieves the actual goal — no request ever 404s — without
-  discarding the 15 recorded fixtures or fighting WireMock's matcher model. This plan fixes the catch-all and the
-  15 stubs' broken `bodyFileName`s in place; it does not touch any `bodyPatterns`.
+- **[SUPERSEDED — round 1 reasoning, kept for record] Why the 15 specific stubs were not being generalized/
+  pruned:** WireMock's `equalToJson` has no partial/field-masking mode, so the only way to make an individual
+  stub tolerant of a different `transactionId`/history is to replace it with `matchesJsonPath` constraints on
+  just the stable fields (`$.system`, `$.model`). But since **all 15 stubs share the identical stable `system`
+  prompt and `model`**, doing that to all of them would make them indistinguishable — only one could ever be
+  reached, per WireMock's own equal-priority tie-break, making the other 14 dead weight. The already-restored
+  catch-all (once its bug is fixed and given a lower `priority`) achieves the actual goal — no request ever
+  404s — without discarding the 15 recorded fixtures or fighting WireMock's matcher model. Round 1 fixed the
+  catch-all and the 15 stubs' broken `bodyFileName`s in place; it did not touch any `bodyPatterns`.
+- **Round 2 correction — the user confirmed via a real `./gradlew dev` run that the 15 specific stubs still
+  never matched, even after round 1.** The round-1 reasoning above only evaluated `system`/`model` as candidate
+  match keys and correctly ruled them out — but never considered `transactionId`, which **is** a stable,
+  per-transaction-unique field embedded in the prompt text (`messages[0].content`), confirmed generated
+  deterministically by `backend/src/main/resources/db/seed/R__seed_demo_data.sql` (fixed UUID formula off
+  `generate_series` — same IDs every run; cross-checked against 5 stubs' embedded amounts, which are themselves
+  computed by the same generator and matched exactly). The real reason `equalToJson` never matches — even
+  replaying the *same* transaction twice — is that its "Prior assessments" history section grows a fresh
+  `triggeredAt` timestamp on every re-assessment, breaking full-body equality immediately. Separately, of the 15
+  recorded stubs, only **9 represent genuinely distinct transactions**; 6 are redundant re-recordings of the
+  same 4 transactions at different points in their growing history:
+
+  | transactionId group | files (priorCount) | keep | drop |
+  |---|---|---|---|
+  | `b...-003` | 3AWDA(5), 6fuUu(3), lioza(4), zEbZh(5) | **3AWDA** | 6fuUu, lioza, zEbZh |
+  | `b...-001` | 3OQsW(2), CoFk2(1) | **3OQsW** | CoFk2 |
+  | `b...-002` | xF5qC(2), xs2r8(1) | **xF5qC** | xs2r8 |
+  | `a...-025` | oL2bT(0), xMpOa(1) | **xMpOa** | oL2bT |
+  | others (`c...-003`, `c...-002`, `f...-027`, `f...-026`, `a...-024`) | 1 file each | keep | — |
+
+  **Corrected resolution:** delete the 6 redundant pairs (`mappings/` + `__files/`); rewrite each of the 9 kept
+  mappings' `bodyPatterns` from full-body `equalToJson` to a `transactionId`-scoped regex —
+  `{"matches": "(?s).*transactionId: <that-file's-own-uuid>.*"}` — tolerant of any amount of history/timestamp
+  drift while remaining fully transaction-specific. The catch-all (now serving 9-vs-everything-else instead of
+  15) is otherwise unchanged.
 - `docs/development/PHASE_6_PLAN.md`'s WireMock scope was unrelated (CI/Sonar only) — no conflict.
 - **Security finding from code review, now fixed:** all 15 mapping files' `response.headers` carried the real
   `anthropic-organization-id` and `anthropic-workspace-id` values captured verbatim during the real recording
@@ -86,18 +111,26 @@ Scope/Functional Requirements.
 
 ## Design
 
-### 1. Fix the 15 specific stubs' `bodyFileName` (mechanical, no `bodyPatterns` change)
+### 1. Fix the `bodyFileName`s, delete redundant stubs, and scope matching by `transactionId` (round 2)
 
-In each of the 15 `local-environment/wiremock/mappings/anthropic-messages-<suffix>.json` files, change:
+Round 1 fixed each of the 15 stubs' `bodyFileName` (mechanical, `body-v1-messages-<suffix>.json` →
+`anthropic-messages-<suffix>.json`), but left `bodyPatterns` untouched. Round 2 supersedes that with the
+corrected resolution from Current State:
 
-```diff
--  "bodyFileName" : "body-v1-messages-<suffix>.json",
-+  "bodyFileName" : "anthropic-messages-<suffix>.json",
-```
-
-(one line per file, same transformation, `<suffix>` matching the file's own name — e.g. `3AWDA`, `3OQsW`, ...
-`zJr9w`). No other field changes. This is what makes replaying one of the 15 original demo scenarios actually
-return its recorded content instead of a WireMock file-not-found error.
+1. Delete the 6 redundant mapping + body file pairs: `6fuUu`, `lioza`, `zEbZh`, `CoFk2`, `xs2r8`, `oL2bT` (both
+   `mappings/anthropic-messages-<suffix>.json` and `__files/anthropic-messages-<suffix>.json`).
+2. For each of the 9 kept files, replace `request.bodyPatterns` entirely:
+   ```diff
+   -  "bodyPatterns": [ { "equalToJson": "<full captured body>", "ignoreArrayOrder": true, "ignoreExtraElements": true } ]
+   +  "bodyPatterns": [ { "matches": "(?s).*transactionId: <that-file's-own-uuid>.*" } ]
+   ```
+   `(?s)` (DOTALL) is defensive in case the raw body ever contains a real newline; UUIDs need no regex escaping.
+   The 9 UUIDs (extracted from each file's own originally-recorded content): `3AWDA`→
+   `b0000000-0000-0000-0000-000000000003`, `3OQsW`→`b0000000-0000-0000-0000-000000000001`, `xF5qC`→
+   `b0000000-0000-0000-0000-000000000002`, `7KI5Z`→`c0000000-0000-0000-0000-000000000003`, `zJr9w`→
+   `c0000000-0000-0000-0000-000000000002`, `L2R2v`→`f0000000-0000-0000-0000-000000000027`, `vNXC8`→
+   `f0000000-0000-0000-0000-000000000026`, `Ow3xp`→`a0000000-0000-0000-0000-000000000024`, `xMpOa`→
+   `a0000000-0000-0000-0000-000000000025`. `response`/`priority` fields are untouched.
 
 ### 2. Fix the catch-all mapping + body file name mismatch, and set explicit priority
 
@@ -183,17 +216,26 @@ each table's *primary* data row (not the hidden detail row):
 The hidden `tr.detail-row` in the first two tables is left unstyled by `app-alt-row` — it's `display:none` except
 when expanded, and when expanded it should read as a continuation of its parent row, not get its own stripe.
 
-### 6. New automated test against the real `local-environment/wiremock/` fixtures (AC1/AC2)
+### 6. New automated test against the real `local-environment/wiremock/` fixtures (AC1/AC2) — round 2 rewrite
 
 `AiRiskAssessmentWireMockReplayTest.java` cannot cover this: both its nested scenarios boot an isolated,
 dynamic-port `WireMockExtension` with one hand-built always-matching stub, and never point at
-`local-environment/wiremock/`'s actual `mappings/`/`__files/` directories — it's the wrong tool for regression-
-testing *this* fixture set. Add a new, plain JUnit 5 test (no Spring context needed — this is pure HTTP against a
-WireMock instance loaded from disk), e.g.
-`backend/src/test/java/io/github/adarko22/customeractivityanalytics/risk/engine/AiRiskAssessmentLocalWireMockFixturesTest.java`:
+`local-environment/wiremock/`'s actual `mappings/`/`__files/` directories. A plain JUnit 5 test (no Spring
+context needed — pure HTTP against a WireMock instance loaded from disk),
+`backend/src/test/java/io/github/adarko22/customeractivityanalytics/risk/engine/AiRiskAssessmentLocalWireMockFixturesTest.java`,
+exercises it directly.
+
+**Round 1's version of this test only proved the byte-identical-replay case** (POST the exact originally-recorded
+body back) — which passed even under the broken round-1 matchers, since it never varied the "Prior assessments"
+section, so it never actually caught the bug the user hit. **Round 2 rewrites it to test the real regression**:
+since the mapping's matcher no longer inspects `system`/`model`/schema at all (only a `transactionId` substring),
+the test body no longer needs to replicate the full real prompt — it only needs to contain a `transactionId:
+<uuid>` line, which is exactly what makes the "vary the history" test meaningful and simple:
 
 ```java
 class AiRiskAssessmentLocalWireMockFixturesTest {
+
+  private static final String KNOWN_TRANSACTION_ID = "b0000000-0000-0000-0000-000000000003"; // the 3AWDA stub
 
   @RegisterExtension
   static WireMockExtension wireMock =
@@ -203,19 +245,18 @@ class AiRiskAssessmentLocalWireMockFixturesTest {
           .build();
 
   @Test
-  void replayingAnOriginalRecordedScenarioReturnsItsOwnRecordedContent() {
-    // Read one recorded mapping's request.bodyPatterns[0].equalToJson verbatim (e.g.
-    // mappings/anthropic-messages-3AWDA.json) and POST it to wireMock.baseUrl() + "/v1/messages".
-    // Assert HTTP 200 and that the response body contains that scenario's own recorded findings text
-    // (proves the bodyFileName fix in Design §1 — without it, this currently 404/500s).
+  void aKnownTransactionMatchesItsStubRegardlessOfGrowingAssessmentHistory() {
+    // Build two request bodies for KNOWN_TRANSACTION_ID: one with the originally-recorded single
+    // history entry, one with a longer/different history (extra entries, different timestamps).
+    // POST both to wireMock.baseUrl() + "/v1/messages" and assert both return HTTP 200 with the
+    // 3AWDA stub's own recorded findings text — this is exactly the case round 1 got wrong.
   }
 
   @Test
   void aNovelTransactionStillGetsTheGenericFallbackInsteadOf404() {
-    // Build a request body with the same stable "system"/"model" fields as the recorded scenarios but a
-    // different transactionId/history (i.e. one that matches none of the 15 bodyPatterns). POST it and
-    // assert HTTP 200, with content distinct from any of the 15 specific recorded findings (proves the
-    // catch-all + priority fix in Design §2, not a relaxed per-stub matcher, is what prevents the 404).
+    // Build a request body containing a transactionId not among the 9 kept stubs. Assert HTTP 200
+    // with content distinct from any specific stub's findings (proves the catch-all + priority is
+    // what prevents the 404, not a relaxed per-stub matcher).
   }
 }
 ```
@@ -229,10 +270,11 @@ assumed `AiRiskAssessmentWireMockReplayTest` could cover.
 
 | File | Change |
 |---|---|
-| `local-environment/wiremock/mappings/anthropic-messages-*.json` (15 files) | Fix `response.bodyFileName` to match the already-renamed `__files/anthropic-messages-*.json` |
+| `local-environment/wiremock/mappings/anthropic-messages-{6fuUu,lioza,zEbZh,CoFk2,xs2r8,oL2bT}.json` + matching `__files/` entries (6 pairs) | **Deleted** — redundant re-recordings of already-represented transactions (round 2) |
+| `local-environment/wiremock/mappings/anthropic-messages-{3AWDA,3OQsW,xF5qC,7KI5Z,zJr9w,L2R2v,vNXC8,Ow3xp,xMpOa}.json` (9 files) | Round 1: fix `response.bodyFileName`. Round 2: replace `request.bodyPatterns` with a `transactionId`-scoped `matches` regex |
 | `local-environment/wiremock/mappings/anthropic-messages.json` | Add `"priority": 10` |
 | `local-environment/wiremock/__files/anthropic-messages.json` → `anthropic-messages-response.json` | Rename to match the mapping's existing `bodyFileName` reference; optionally align `model` field |
-| `local-environment/wiremock/README.md` | Fix the broken link target; correct the "always present" / mapping-count description |
+| `local-environment/wiremock/README.md` | Fix the broken link target; correct mapping-count description (round 1: 16 → round 2: 10); document the manual `transactionId`-scoped `matches` edit as a required post-recording step |
 | `frontend/src/styles.scss` | Restyle `.table-header-cell`; add `.app-alt-row` and `table.mat-mdc-table` rounding rules |
 | `frontend/src/app/features/transactions/transaction-table/transaction-table.component.html` | Add row index + `app-alt-row` binding |
 | `frontend/src/app/features/risk-assessment/risk-assessment-history-table/risk-assessment-history-table.component.html` | Add row index + `app-alt-row` binding |
@@ -247,7 +289,7 @@ assumed `AiRiskAssessmentWireMockReplayTest` could cover.
 | `PHASE_7.md` AC | Verified by |
 |---|---|
 | AC1 (no env vars → no 404 for a novel transaction) | New `AiRiskAssessmentLocalWireMockFixturesTest.aNovelTransactionStillGetsTheGenericFallbackInsteadOf404` (Design §6) — automated; plus a manual `./gradlew dev` smoke check with no env vars set. |
-| AC2 (original 15 scenarios still replay their own content) | New `AiRiskAssessmentLocalWireMockFixturesTest.replayingAnOriginalRecordedScenarioReturnsItsOwnRecordedContent` (Design §6) — automated, asserts the specific recorded `findings`/`recommendations` are returned. |
+| AC2 (each of the 9 kept transactions replays its own content, including on repeat assessment) | New `AiRiskAssessmentLocalWireMockFixturesTest.aKnownTransactionMatchesItsStubRegardlessOfGrowingAssessmentHistory` (Design §6, round 2 rewrite) — automated; asserts a match survives a *changed* "Prior assessments" section, the exact case round 1's test didn't cover. |
 | AC3 (catch-all files exist, README resolves) | File existence check post-implementation; open `README.md` in the IDE and confirm no "Cannot resolve file" warnings. |
 | AC4 (`app.ai.provider` defaults to `anthropic`) | Already true — `grep 'provider:' backend/src/main/resources/application.yml`. |
 | AC5 (stronger orange header, alternating rows, rounded corners on all 3 tables) | `frontend/src/app/features/**/*.component.spec.ts` — new assertions that a rendered header `<th>` carries `.table-header-cell` and a rendered odd-indexed row carries `.app-alt-row`; manual visual check (`npm start`) for the rounding/color itself (no visual-regression tooling in this stack). |
@@ -267,3 +309,7 @@ assumed `AiRiskAssessmentWireMockReplayTest` could cover.
 - **`AiRiskAssessmentLocalWireMockFixturesTest` (Design §6) is new test infrastructure**, not an extension of an
   existing suite — it's the smallest addition that can actually exercise `local-environment/wiremock/`'s real
   files (no existing test does), and is scoped to exactly the two assertions AC1/AC2 need.
+- **Recording new stubs now requires a manual matcher edit every time** (Design §1 / README update) — WireMock's
+  CLI record flags and Admin API `requestBodyPattern` options have no field-scoped extraction mode, so this
+  can't be automated away; a future contributor recording a new transaction must remember this step or the new
+  stub will silently regress to the same full-body-match problem this phase fixes.

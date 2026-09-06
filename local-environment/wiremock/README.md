@@ -5,28 +5,26 @@ demo runs fully offline ([DECISIONS.md](../../docs/DECISIONS.md) D4), for either
 ([DECISIONS.md](../../docs/DECISIONS.md) D19):
 
 - **OpenAI** — [openai-chat-completions.json](mappings/openai-chat-completions.json) /
-  [openai-chat-completions-response.json](__files/openai-chat-completions-response.json)
-  (`POST /v1/chat/completions`). The backend's `local`
-  profile ([application-local.yml](../../backend/src/main/resources/application-local.yml)) points
-  `spring.ai.openai.base-url` at this container (with the `/v1` suffix — the openai-java SDK's default
-  base-url already includes the path, so a full override must too).
+  [openai-chat-completions-response.json](__files/openai-chat-completions-response.json).
+    - The backend's `local` profile ([application-local.yml](../../backend/src/main/resources/application-local.yml))
+      points `spring.ai.openai.base-url` at this container.
 - **Anthropic** — [anthropic-messages.json](mappings/anthropic-messages.json) /
-  [anthropic-messages-response.json](__files/anthropic-messages-response.json)
-  (`POST /v1/messages`, generic fallback, `priority: 10`) plus 15 `anthropic-messages-<suffix>.json` /
-  `anthropic-messages-<suffix>.json` scenario-specific stubs recorded from real Anthropic Haiku 4.5 responses
-  (exact-body match, default priority — see `docs/development/PHASE_7.md`).
-  [application-local.yml](../../backend/src/main/resources/application-local.yml) points
-  `spring.ai.anthropic.base-url` at the same container (no `/v1` suffix — the anthropic-java SDK appends `/v1/messages`
-  itself).
+  [anthropic-messages-response.json](__files/anthropic-messages-response.json).
+    - Also9 `anthropic-messages-<suffix>.json` / `anthropic-messages-<suffix>.json` scenario-specific stubs, one per
+      seeded demo transaction, recorded from real Anthropic Haiku 4.5 responses.
+      See [PHASE_7.md](../../docs/development/PHASE_7.md)
+    - The backend's `local` profile [application-local.yml](../../backend/src/main/resources/application-local.yml)
+      points `spring.ai.anthropic.base-url` at the same container.
 
-OpenAI has exactly one mapping; Anthropic has 16 (15 specific recorded scenarios + 1 generic fallback). Switching
-`app.ai.provider` between `openai` and `anthropic` (default `anthropic` since
-[DECISIONS.md](../../docs/DECISIONS.md) D26) never requires touching WireMock config — only the mapping(s)
-matching the active provider's request path are ever hit. For Anthropic, the 15 specific stubs replay their own
-exact original transaction/history verbatim; any other request falls through to the lower-priority generic
-fallback, so no request ever 404s. Each stubbed response carries a `fixedDelayMilliseconds` of 2500ms so the SSE
-`MODEL_CALL` stage is visibly in progress in the UI rather than resolving instantly, well inside the
-configured `app.risk.assessment-timeout` (45s) / `sse-timeout` (50s).
+OpenAI has exactly one mapping; Anthropic has 10 (9 transaction-specific scenarios + 1 generic fallback).
+Switching `app.ai.provider` between `openai` and `anthropic` (default `anthropic` since
+[DECISIONS.md](../../docs/DECISIONS.md) D26).
+
+For Anthropic, a request for one of the 9 seeded demo transactions replays that transaction's own recorded findings
+regardless of how much assessment history has accumulated since it was recorded; any other transaction falls through to
+the lower-priority generic fallback, so no request ever 404s. Each stubbed response carries a `fixedDelayMilliseconds`
+of 2500ms so the SSE `MODEL_CALL` stage is visibly in progress in the UI rather than resolving instantly, well inside
+the configured `app.risk.assessment-timeout` (45s) / `sse-timeout` (50s).
 
 ## Recording a new stub from a real provider response (dev-only)
 
@@ -59,7 +57,23 @@ provider whose response you want to capture; it defaults to `https://api.openai.
    AI risk assessment through the UI.
 4. Copy the newly recorded `mappings`/`__files` entries into this folder, replacing or adding to the
    existing `anthropic-messages*` stub.
-5. Stop the container and restart it without `WIREMOCK_RECORD_MODE`/`WIREMOCK_PROXY_TARGET` to return
+5. **Scope the new mapping to its transaction, not its exact byte content.** WireMock's recorder always writes a
+   full-body `equalToJson` matcher — replace it by hand with a regex keyed on the transaction's own
+   `transactionId` (find the UUID inside the captured `request.bodyPatterns[0].equalToJson`'s `messages[0].content`
+   string):
+   ```json
+   {
+     "bodyPatterns": [ { "matches": "(?s).*transactionId: <uuid-from-the-captured-request>.*" } ]
+   }
+   ```
+   Without this, the stub only ever matches the exact request that produced it — the "Prior assessments" section
+   embedded in every prompt grows a new timestamped entry on each re-assessment, so even replaying the *same*
+   transaction a second time would never match a full-body-equality stub. There's no CLI or Admin API record-mode
+   flag that produces this automatically (WireMock's recorder and its `POST /__admin/recordings/start`
+   `requestBodyPattern.matcher` options — `equal-to-json`/`equal-to`/`contains` — are all whole-body strategies;
+   none can extract a single field), so this is a manual edit every time. This step is Anthropic-specific — the
+   OpenAI stub is a single generic mapping with no per-transaction content to scope by.
+6. Stop the container and restart it without `WIREMOCK_RECORD_MODE`/`WIREMOCK_PROXY_TARGET` to return
    to normal offline replay.
 
 If your Docker Compose version doesn't expand the `${WIREMOCK_RECORD_MODE:+...}`/
